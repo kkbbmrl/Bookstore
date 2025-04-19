@@ -54,22 +54,26 @@ session_start();
           </div>
         </div>
         <div class="search-box">
-          <div class="search-field">
-            <input
-              type="text"
-              placeholder="Search over 30 million Book titles"
-            />
-            <button class="search-icon">
-              <i class="fa-solid fa-magnifying-glass"></i>
-            </button>
-          </div>
+          <form action="search.php" method="GET">
+            <div class="search-field">
+              <input
+                type="text"
+                name="query"
+                placeholder="Search over 30 million Book titles"
+                required
+              />
+              <button class="search-icon" type="submit">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </button>
+            </div>
+          </form>
         </div>
         <div class="nav-end">
           <button class="likebtn">
             <i class="fa-regular fa-heart"></i> <span>35</span>
           </button>
           <button class="cart">
-            <a href="cart-item.html"><i class="fa-solid fa-cart-shopping"></i> <span>4</span></a>
+            <a href="cart-item.php"><i class="fa-solid fa-cart-shopping"></i> <span>4</span></a>
           </button>
           <div class="profile-img">
             <img

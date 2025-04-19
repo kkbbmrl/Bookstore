@@ -68,7 +68,7 @@ if(isset($_SESSION['contact_error'])) {
       <nav class="navbar">
         <div class="logo">
           <div class="img">
-            <img src="images/logo.png" alt="" />
+            <img src="../images/logo.png" alt="" />
           </div>
           <div class="logo-header">
             <h4><a href="index.php">Fassila</a></h4>
@@ -79,7 +79,7 @@ if(isset($_SESSION['contact_error'])) {
           <div class="logo">
             <div class="title">
               <div class="img">
-                <img src="images/logo.png" alt="" />
+                <img src="../images/logo.png" alt="" />
               </div>
               <div class="logo-header">
                 <h4><a href="index.php">Fassila</a></h4>
@@ -879,7 +879,7 @@ if(isset($_SESSION['contact_error'])) {
         <div class="logo-description">
           <div class="logo">
             <div class="img">
-              <img src="images/logo.png" alt="" />
+              <img src="../images/logo.png" alt="" />
             </div>
             <div class="title">
               <h4>Fassila</h4>

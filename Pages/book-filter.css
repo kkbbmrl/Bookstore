@@ -10,12 +10,16 @@
     justify-content: space-between;
     padding: 20px 30px;
     border-bottom: 1px solid #ccc;
+    position: relative;
+    z-index: 100;
 }
 
 .navbar-2 .logo {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    position: relative;
+    z-index: 101;
 }
 
 .navbar-2 .logo img {

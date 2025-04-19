@@ -74,10 +74,12 @@
               <a href="cart-item.html"><i class="fa-solid fa-cart-shopping"></i> <span>4</span></a>
             </button>
             <div class="profile-img">
-              <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiM0o_5tIn0DAmbB2wKS4GvurHctTwxD5om2vi4NOsj1ODDSGULrviZ-QV3ul8JYEMfO0&usqp=CAU"
-                alt=""
-              />
+              <a href="account.php">
+                
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiM0o_5tIn0DAmbB2wKS4GvurHctTwxD5om2vi4NOsj1ODDSGULrviZ-QV3ul8JYEMfO0&amp;usqp=CAU" alt="">
+                
+              
+              </a>
             </div>
           </div>
         </nav>
@@ -339,5 +341,37 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+
+<style>
+    .user {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .user img {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        margin-right: 10px;
+        cursor: pointer;
+    }
+
+    .user img:hover {
+        opacity: 0.8;
+    }
+
+    .user a {
+        text-decoration: none;
+        color: #333;
+        font-weight: bold;
+    }
+
+    .user a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+
 </body>
 </html>
