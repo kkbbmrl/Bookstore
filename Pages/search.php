@@ -26,19 +26,29 @@ if(isset($_GET['query']) && !empty($_GET['query'])) {
     // Get and sanitize the search query
     $searchQuery = sanitize_input($_GET['query']);
     
-    // PART 1: Search local database
-    $sql = "SELECT * FROM books 
+    // PART 1: Search local database with proper joins for authors and categories
+    $sql = "SELECT b.*, 
+                   GROUP_CONCAT(DISTINCT a.name SEPARATOR ', ') as author,
+                   GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as categories
+            FROM books b
+            LEFT JOIN book_authors ba ON b.id = ba.book_id
+            LEFT JOIN authors a ON ba.author_id = a.id
+            LEFT JOIN book_categories bc ON b.id = bc.book_id
+            LEFT JOIN categories c ON bc.category_id = c.id
             WHERE 
-                title LIKE ? OR 
-                description LIKE ? OR 
-                isbn LIKE ? OR
-                publisher LIKE ?
-            ORDER BY title ASC";
+                b.title LIKE ? OR 
+                b.description LIKE ? OR 
+                b.isbn LIKE ? OR
+                b.publisher LIKE ? OR
+                a.name LIKE ? OR
+                c.name LIKE ?
+            GROUP BY b.id
+            ORDER BY b.title ASC";
     
     // Prepare and execute the statement
     $stmt = $conn->prepare($sql);
     $searchTerm = "%" . $searchQuery . "%";
-    $stmt->bind_param("ssss", $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+    $stmt->bind_param("ssssss", $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm);
     $stmt->execute();
     $result = $stmt->get_result();
     
@@ -133,6 +143,8 @@ if(isset($_GET['query']) && !empty($_GET['query'])) {
     <title>Search Results - Fassila Bookstore</title>
     <link rel="stylesheet" href="../css/style.css" />
     <link rel="stylesheet" href="book-filter.css" />
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Fontawesome Link for Icons -->
     <link
       rel="stylesheet"
@@ -167,12 +179,138 @@ if(isset($_GET['query']) && !empty($_GET['query'])) {
         .search-results {
             padding: 2rem 5%;
             min-height: 50vh;
+            background-color: #f8f9fa;
         }
-     
+        
+        /* Search box styling */
+        .navbar-2 .search-box {
+            flex: 1 1 350px;
+            max-width: 400px;
+            min-width: 220px;
+            margin: 0 30px;
+            display: flex;
+            align-items: center;
+        }
+        .search-box form {
+            width: 100%;
+        }
+        .search-field {
+            width: 100%;
+            display: flex;
+            background-color: #f3f0fe;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 45px;
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .search-field:focus-within {
+            border-color: #6c5dd4;
+            box-shadow: 0 0 0 3px rgba(108, 93, 212, 0.15);
+        }
+        
+        .search-field input {
+            flex: 1;
+            height: 100%;
+            border: none;
+            outline: none;
+            background-color: transparent;
+            padding: 0 15px;
+            font-size: 14px;
+            color: #131428;
+        }
+        
+        .search-field input::placeholder {
+            color: #696a6e;
+            font-size: 14px;
+        }
+        
+        .search-field .search-icon {
+            background-color: #6c5dd4;
+            border: none;
+            height: 100%;
+            width: 50px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s;
+        }
+        
+        .search-field .search-icon:hover {
+            background-color: #5a4cb8;
+        }
+        
+        .search-field.loading .search-icon {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .search-field.loading .search-icon::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        @media (max-width: 900px) {
+            .navbar-2 .search-box {
+                max-width: 100%;
+                margin: 10px 0;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .navbar-2 .search-box {
+                min-width: 0;
+                margin: 10px 0;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .search-box {
+                width: 100%;
+                max-width: 500px;
+                margin: 0;
+            }
+        }
+        
         .search-message {
             margin-bottom: 1.5rem;
             color: #666;
+            font-size: 1.1rem;
         }
+        
+        .search-header h3 {
+            color: #6c5dd4;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        
+        .search-header h3:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background: linear-gradient(90deg, #6c5dd4, #ff7a00);
+            border-radius: 10px;
+        }
+        
         .api-badge {
             position: absolute;
             top: 10px;
@@ -183,44 +321,278 @@ if(isset($_GET['query']) && !empty($_GET['query'])) {
             border-radius: 4px;
             font-size: 12px;
             font-weight: 500;
+            z-index: 10;
         }
+        
         .books-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 25px;
             margin-bottom: 3rem;
         }
+        
         .book-card {
             position: relative;
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
             background: white;
             height: 100%;
             display: flex;
             flex-direction: column;
+            border: none;
         }
+        
         .book-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+            transform: translateY(-8px);
+            box-shadow: 0 10px 25px rgba(108, 93, 212, 0.2);
         }
+        
         .book-image {
             height: 250px;
             overflow: hidden;
             position: relative;
         }
+        
         .book-image img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transition: transform 0.5s;
         }
+        
         .book-card:hover .book-image img {
             transform: scale(1.05);
         }
+        
+        .book-details {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+        
+        .book-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: #333;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.3;
+        }
+        
+        .book-author {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 12px;
+        }
+        
+        .book-rating-review {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 15px;
+        }
+        
+        .rating {
+            display: flex;
+            align-items: center;
+        }
+        
+        .rating i {
+            color: #FFD700; /* Yellow stars */
+            margin-right: 5px;
+        }
+        
+        .book-rating-review span {
+            color: #FF6B35; /* Orange reviews */
+            font-size: 0.85rem;
+        }
+        
+        .badge {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .badge span {
+            background-color: #f0f0f0;
+            color: #666;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            text-transform: capitalize;
+        }
+        
+        .book-price {
+            margin-top: auto;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .book-price strong {
+            color: #6c5dd4;
+            font-size: 1.2rem;
+            margin-right: 8px;
+        }
+        
+        .book-old-price {
+            text-decoration: line-through;
+            color: #999;
+            font-size: 0.9rem;
+        }
+        
+        .book-stock {
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .in-stock {
+            color: #28a745;
+            display: flex;
+            align-items: center;
+        }
+        
+        .in-stock:before {
+            content: '•';
+            font-size: 1.5rem;
+            margin-right: 5px;
+        }
+        
+        .low-stock {
+            color: #ffc107;
+            display: flex;
+            align-items: center;
+        }
+        
+        .low-stock:before {
+            content: '•';
+            font-size: 1.5rem;
+            margin-right: 5px;
+        }
+        
+        .out-of-stock {
+            color: #dc3545;
+            display: flex;
+            align-items: center;
+        }
+        
+        .out-of-stock:before {
+            content: '•';
+            font-size: 1.5rem;
+            margin-right: 5px;
+        }
+        
+        .preview-link {
+            text-decoration: none;
+            width: 100%;
+        }
+        
+        .preview-button {
+            width: 100%;
+            background-color: #6c5dd4;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .preview-button:hover {
+            background-color: #5a4cb8;
+        }
+        
+        /* Book badges */
+        .book-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 5;
+        }
+        
+        .bestseller-badge {
+            background-color: #FF6B35;
+            color: white;
+        }
+        
+        .featured-badge {
+            background-color: #6c5dd4;
+            color: white;
+        }
+        
+        /* No results styling */
+        .no-results {
+            text-align: center;
+            padding: 50px 0;
+            color: #666;
+        }
+        
+        .no-results h4 {
+            margin: 15px 0;
+            font-weight: 600;
+        }
+        
+        /* Additional Bootstrap enhancements */
+        .breadcrumb-container {
+            background-color: #f2f2f2;
+            padding: 10px 5%;
+        }
+        
+        .breadcrumb {
+            margin-bottom: 0;
+        }
+        
+        /* Google Books separator */
+        .google-books-separator {
+            display: flex;
+            align-items: center;
+            margin: 40px 0;
+            width: 100%;
+        }
+        
+        .google-books-separator h3 {
+            padding: 0 20px;
+            color: #6c5dd4;
+            font-size: 1.4rem;
+            white-space: nowrap;
+            margin-bottom: 0;
+        }
+        
+        .separator-line {
+            height: 2px;
+            background: linear-gradient(to right, transparent, #d1d1d1, transparent);
+            flex-grow: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .google-books-separator h3 {
+                font-size: 1.1rem;
+                padding: 0 10px;
+            }
+        }
+        
         /* Footer styles */
-       
+      
+        
+  
+        
         .contact-info p {
             display: flex;
             align-items: center;
@@ -228,15 +600,18 @@ if(isset($_GET['query']) && !empty($_GET['query'])) {
             font-size: 0.9rem;
             color: #bbb;
         }
+        
         .contact-info i {
             margin-right: 10px;
             color: #6c5dd4;
         }
+        
         .social-icons {
             display: flex;
             gap: 1rem;
             margin-top: 1rem;
         }
+        
         .social-icons a {
             display: flex;
             align-items: center;
@@ -248,38 +623,10 @@ if(isset($_GET['query']) && !empty($_GET['query'])) {
             color: #fff;
             transition: all 0.3s;
         }
+        
         .social-icons a:hover {
             background: #6c5dd4;
             transform: translateY(-3px);
-        }
-        .newsletter-form {
-            display: flex;
-            margin-top: 1rem;
-        }
-        .newsletter-form input {
-            flex-grow: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 4px 0 0 4px;
-            outline: none;
-        }
-        .newsletter-form button {
-            background: #6c5dd4;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 0 4px 4px 0;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        .newsletter-form button:hover {
-            background: #5a4cb8;
-        }
-        .book-details {
-            padding: 15px;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
         }
     </style>
 </head>
@@ -315,244 +662,250 @@ if(isset($_GET['query']) && !empty($_GET['query'])) {
               <i class="fa-regular fa-heart"></i> <span>35</span>
             </button>
             <button class="cart">
-              <a href="cart-item.html"><i class="fa-solid fa-cart-shopping"></i> <span>4</span></a>
+              <a href="cart-item.php"><i class="fa-solid fa-cart-shopping"></i> <span>4</span></a>
             </button>
             <div class="profile-img">
-              <img
-                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiM0o_5tIn0DAmbB2wKS4GvurHctTwxD5om2vi4NOsj1ODDSGULrviZ-QV3ul8JYEMfO0&usqp=CAU"
-                alt=""
-              />
+              <a href="account.php">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiM0o_5tIn0DAmbB2wKS4GvurHctTwxD5om2vi4NOsj1ODDSGULrviZ-QV3ul8JYEMfO0&amp;usqp=CAU" alt="">
+              </a>
             </div>
           </div>
         </nav>
       </header>
-    <div class="breadcrumb-container">
+
+      <div class="breadcrumb-container">
         <ul class="breadcrumb">
-            <li><a href="../index.php">Home</a></li>
-            <li><a href="#">Search Results</a></li>
+            <li><a href="../index.php" style="color: #6c5dd4">Home</a></li>
+          <li><a href="#">Search Results</a></li>
         </ul>
-    </div>
-    
+      </div>
+
     <section class="search-results">
-        <div class="search-header">
-            <h3>Search Results</h3>
-            <div class="search-message"><?php echo $message; ?></div>
-        </div>
-        
-        <?php if($totalResults > 0): ?>
-            <!-- Display local database results -->
-            <?php if(count($books) > 0): ?>
-                <div class="books-container">
-                    <?php foreach($books as $book): ?>
-                        <div class="book-card">
-                            <?php if(isset($book['bestseller']) && $book['bestseller'] == 1): ?>
-                                <div class="book-badge bestseller-badge">BESTSELLER</div>
-                            <?php endif; ?>
-                            <?php if(isset($book['featured']) && $book['featured'] == 1): ?>
-                                <div class="book-badge featured-badge">FEATURED</div>
-                            <?php endif; ?>
-                            
-                            <div class="book-image">
-                                <?php if(!empty($book['cover_image']) && file_exists('../images/books/' . $book['cover_image'])): ?>
-                                    <a href="book-detail.php?id=<?php echo $book['id']; ?>">
-                                        <img src="../images/books/<?php echo $book['cover_image']; ?>" alt="<?php echo $book['title']; ?>">
-                                    </a>
-                                <?php elseif(!empty($book['cover_img'])): ?>
-                                    <a href="book-detail.php?id=<?php echo $book['id']; ?>">
-                                        <img src="<?php echo $book['cover_img']; ?>" alt="<?php echo $book['title']; ?>">
-                                    </a>
-                                <?php else: ?>
-                                    <a href="book-detail.php?id=<?php echo $book['id']; ?>">
-                                        <img src="../images/book-loader.gif" alt="Book cover not available">
-                                    </a>
-                                <?php endif; ?>
-                            </div>
-                            <div class="book-details">
-                                <div class="book-title"><?php echo $book['title']; ?></div>
-                                
-                                <div class="book-author">By: <?php echo $book['author'] ?? 'Unknown Author'; ?></div>
-                                
-                                <div class="book-rating-review">
-                                    <div class="rating">
-                                        <i class="fa-solid fa-star"></i> <?php echo isset($book['rating']) ? $book['rating'] : '4.0'; ?>
-                                    </div>
-                                    <span><?php echo isset($book['reviews']) ? $book['reviews'] : '100'; ?> Reviews</span>
-                                </div>
-                                
-                                <?php 
-                                // Generate dynamic genre tags based on book title
-                                $title = strtolower($book['title']);
-                                $genres = [];
-                                
-                                if (strpos($title, 'harry') !== false || strpos($title, 'potter') !== false) {
-                                    $genres = ['fantasy', 'magic', 'adventure'];
-                                } elseif (strpos($title, 'percy') !== false || strpos($title, 'olympus') !== false) {
-                                    $genres = ['mythology', 'adventure', 'young adult'];
-                                } elseif (strpos($title, 'giver') !== false) {
-                                    $genres = ['dystopian', 'sci-fi', 'young adult'];
-                                } elseif (strpos($title, 'mockingbird') !== false) {
-                                    $genres = ['classic', 'drama', 'historical'];
-                                } elseif (strpos($title, 'ruins') !== false || strpos($title, 'gorlan') !== false) {
-                                    $genres = ['adventure', 'fantasy', 'action'];
-                                } elseif (strpos($title, 'red queen') !== false) {
-                                    $genres = ['fantasy', 'romance', 'dystopian'];
-                                } else {
-                                    // Default genres if no match
-                                    $genres = ['fiction', 'bestseller'];
-                                }
-                                ?>
-                                
-                                <div class="badge">
-                                    <?php foreach(array_slice($genres, 0, 3) as $genre): ?>
-                                        <span><?php echo $genre; ?></span>
-                                    <?php endforeach; ?>
-                                </div>
-                                
-                                <div class="book-price">
-                                    <strong>$<?php echo number_format(isset($book['price']) ? $book['price'] : '29.99', 2); ?></strong>
-                                    <?php if(!empty($book['original_price']) && $book['original_price'] > 0): ?>
-                                        <span class="book-old-price">$<?php echo number_format($book['original_price'], 2); ?></span>
-                                    <?php endif; ?>
-                                </div>
-                                
-                                <div class="book-stock">
-                                    <?php if(isset($book['stock_quantity'])): ?>
-                                        <?php if($book['stock_quantity'] > 10): ?>
-                                            <span class="in-stock">In Stock</span>
-                                        <?php elseif($book['stock_quantity'] > 0): ?>
-                                            <span class="low-stock">Low Stock (<?php echo $book['stock_quantity']; ?>)</span>
-                                        <?php else: ?>
-                                            <span class="out-of-stock">Out of Stock</span>
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <span class="in-stock">In Stock</span>
-                                    <?php endif; ?>
-                                </div>
-                                
-                                <a href="book-detail.php?id=<?php echo $book['id']; ?>" class="preview-link">
-                                    <button class="preview-button">
-                                        <i class="fa-solid fa-eye"></i> View Details
-                                    </button>
-                                </a>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-            
-            <!-- Display Open Library API results -->
-            <?php if(count($external_books) > 0): ?>
-                <div class="google-books-separator">
-                    <div class="separator-line"></div>
-                    <h3>Additional Books from Open Library</h3>
-                    <div class="separator-line"></div>
-                </div>
-                <style>
-                    .google-books-separator {
-                        display: flex;
-                        align-items: center;
-                        margin: 30px 0;
-                        width: 100%;
-                    }
-                    .google-books-separator h3 {
-                        padding: 0 20px;
-                        color: #6c5dd4;
-                        font-size: 1.4rem;
-                        white-space: nowrap;
-                    }
-                    .separator-line {
-                        height: 1px;
-                        background: linear-gradient(to right, transparent, #d1d1d1, transparent);
-                        flex-grow: 1;
-                    }
-                    @media (max-width: 768px) {
-                        .google-books-separator h3 {
-                            font-size: 1.1rem;
-                            padding: 0 10px;
-                        }
-                    }
-                </style>
-                <div class="books-container">
-                    <?php foreach($external_books as $book): ?>
-                        <div class="book-card external-book">
-                            <div class="api-badge">Open Library</div>
-                            
-                            <div class="book-image">
-                                <a href="book-detail.php?id=<?php echo $book['id']; ?>&api=1">
-                                    <?php if(!empty($book['cover_img'])): ?>
-                                        <img src="<?php echo $book['cover_img']; ?>" alt="<?php echo $book['title']; ?>">
-                                    <?php else: ?>
-                                        <img src="../images/book-loader.gif" alt="Book cover not available">
-                                    <?php endif; ?>
-                                </a>
-                            </div>
-                            <div class="book-details">
-                                <div class="book-title"><?php echo $book['title']; ?></div>
-                                
-                                <div class="book-author">By: <?php echo $book['author']; ?></div>
-                                
-                                <div class="book-rating-review">
-                                    <div class="rating">
-                                        <i class="fa-solid fa-star"></i> <?php echo $book['rating']; ?>
-                                    </div>
-                                    <span><?php echo $book['reviews']; ?> Reviews</span>
-                                </div>
-                                
-                                <?php 
-                                // Generate badges from categories if available
-                                $categories = [];
-                                if(!empty($book['categories'])) {
-                                    $categories = explode(',', $book['categories']);
-                                }
-                                // If no categories, generate from title
-                                if(empty($categories)) {
-                                    $title = strtolower($book['title']);
-                                    if (strpos($title, 'harry') !== false || strpos($title, 'potter') !== false) {
-                                        $categories = ['fantasy', 'magic', 'adventure'];
-                                    } elseif (strpos($title, 'percy') !== false || strpos($title, 'olympus') !== false) {
-                                        $categories = ['mythology', 'adventure', 'young adult'];
-                                    } else {
-                                        $categories = ['fiction', 'literature'];
-                                    }
-                                }
-                                ?>
-                                
-                                <div class="badge">
-                                    <?php foreach(array_slice($categories, 0, 3) as $category): ?>
-                                        <span><?php echo $category; ?></span>
-                                    <?php endforeach; ?>
-                                </div>
-                                
-                                <?php if(!empty($book['publisher'])): ?>
-                                    <div class="book-publisher">Publisher: <?php echo $book['publisher']; ?></div>
-                                <?php endif; ?>
-                                
-                                <?php if(!empty($book['published_date'])): ?>
-                                    <div class="book-date">Published: <?php echo $book['published_date']; ?></div>
-                                <?php endif; ?>
-                                
-                                <div class="book-price">
-                                    <strong>$<?php echo number_format($book['price'], 2); ?></strong>
-                                    <span class="book-old-price">$<?php echo number_format($book['original_price'], 2); ?></span>
-                                </div>
-                                
-                                <a href="book-detail.php?id=<?php echo $book['id']; ?>&api=1" class="preview-link">
-                                    <button class="preview-button">
-                                        <i class="fa-solid fa-eye"></i> View Details
-                                    </button>
-                                </a>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-        <?php else: ?>
-            <div class="no-results">
-                <i class="fa-solid fa-book-open" style="font-size: 50px; color: #ddd; margin-bottom: 20px;"></i>
-                <h4>No books found matching your search criteria</h4>
-                <p>Try different keywords or browse our book categories</p>
+        <div class="container">
+            <div class="search-header mb-4">
+                <h3 class="display-6">Search Results</h3>
+                <div class="search-message"><?php echo $message; ?></div>
             </div>
-        <?php endif; ?>
+            
+            <?php if($totalResults > 0): ?>
+                <!-- Display local database results -->
+                <?php if(count($books) > 0): ?>
+                    <div class="books-container">
+                        <?php foreach($books as $book): ?>
+                            <div class="card book-card">
+                                <?php if(isset($book['bestseller']) && $book['bestseller'] == 1): ?>
+                                    <div class="book-badge bestseller-badge">BESTSELLER</div>
+                                <?php endif; ?>
+                                <?php if(isset($book['featured']) && $book['featured'] == 1): ?>
+                                    <div class="book-badge featured-badge">FEATURED</div>
+                                <?php endif; ?>
+                                
+                                <div class="book-image">
+                                    <a href="book-detail.php?id=<?php echo $book['id']; ?>">
+                                        <?php 
+                                        if(!empty($book['cover_image'])) {
+                                            // Check if the image path is just a filename or a full path
+                                            $cover_image = $book['cover_image'];
+                                            
+                                            // If it's just a filename, prepend the books directory path
+                                            if (!strpos($cover_image, '/') && !strpos($cover_image, '\\')) {
+                                                $imageUrl = "../images/books/" . $cover_image;
+                                            } else {
+                                                // If it's a full path, keep it as is
+                                                $imageUrl = $cover_image;
+                                            }
+                                            
+                                            // Verify the file exists, if not use default
+                                            if (!file_exists($imageUrl)) {
+                                                $imageUrl = "../images/book-1.jpg";
+                                            }
+                                            
+                                            echo '<img src="' . $imageUrl . '" alt="' . $book['title'] . '" class="card-img-top" onerror="this.onerror=null; this.src=\'../images/book-1.jpg\';">';
+                                        } else {
+                                            echo '<img src="../images/book-1.jpg" alt="' . $book['title'] . '" class="card-img-top">';
+                                        }
+                                        ?>
+                                    </a>
+                                </div>
+                                <div class="book-details card-body">
+                                    <h5 class="book-title card-title"><?php echo htmlspecialchars($book['title']); ?></h5>
+                                    
+                                    <p class="book-author card-text">By: <?php echo htmlspecialchars($book['author'] ?? 'Unknown Author'); ?></p>
+                                    
+                                    <div class="book-rating-review">
+                                        <div class="rating">
+                                            <i class="fa-solid fa-star"></i> <?php echo isset($book['rating']) ? $book['rating'] : '4.0'; ?>
+                                        </div>
+                                        <span><?php echo isset($book['reviews']) ? $book['reviews'] : '100'; ?> Reviews</span>
+                                    </div>
+                                    
+                                    <?php 
+                                    // Generate dynamic genre tags based on categories or book title
+                                    $categories = [];
+                                    
+                                    if (!empty($book['categories'])) {
+                                        $categoryNames = explode(', ', $book['categories']);
+                                        foreach ($categoryNames as $catName) {
+                                            if (!empty($catName)) {
+                                                $categories[] = $catName;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // If no categories found, generate based on title
+                                    if (empty($categories)) {
+                                        $title = strtolower($book['title']);
+                                        if (strpos($title, 'harry') !== false || strpos($title, 'potter') !== false) {
+                                            $categories = ['fantasy', 'magic', 'adventure'];
+                                        } elseif (strpos($title, 'percy') !== false || strpos($title, 'olympus') !== false) {
+                                            $categories = ['mythology', 'adventure', 'young adult'];
+                                        } elseif (strpos($title, 'giver') !== false) {
+                                            $categories = ['dystopian', 'sci-fi', 'young adult'];
+                                        } elseif (strpos($title, 'mockingbird') !== false) {
+                                            $categories = ['classic', 'drama', 'historical'];
+                                        } elseif (strpos($title, 'ruins') !== false || strpos($title, 'gorlan') !== false) {
+                                            $categories = ['adventure', 'fantasy', 'action'];
+                                        } elseif (strpos($title, 'red queen') !== false) {
+                                            $categories = ['fantasy', 'romance', 'dystopian'];
+                                        } else {
+                                            // Default genres if no match
+                                            $categories = ['fiction', 'bestseller'];
+                                        }
+                                    }
+                                    ?>
+                                    
+                                    <div class="badge">
+                                        <?php foreach(array_slice($categories, 0, 3) as $genre): ?>
+                                            <span class="bg-light text-dark"><?php echo htmlspecialchars($genre); ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    
+                                    <div class="book-price">
+                                        <?php if (!empty($book['price']) && $book['price'] > 0): ?>
+                                            <strong>$<?php echo number_format($book['price'], 2); ?></strong>
+                                        <?php else: ?>
+                                            <strong>$29.99</strong>
+                                        <?php endif; ?>
+                                        
+                                        <?php if(!empty($book['old_price']) && $book['old_price'] > 0): ?>
+                                            <span class="book-old-price">$<?php echo number_format($book['old_price'], 2); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <div class="book-stock">
+                                        <?php if(isset($book['stock_quantity'])): ?>
+                                            <?php if($book['stock_quantity'] > 10): ?>
+                                                <span class="in-stock">In Stock</span>
+                                            <?php elseif($book['stock_quantity'] > 0): ?>
+                                                <span class="low-stock">Low Stock (<?php echo $book['stock_quantity']; ?>)</span>
+                                            <?php else: ?>
+                                                <span class="out-of-stock">Out of Stock</span>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <span class="in-stock">In Stock</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <a href="book-detail.php?id=<?php echo $book['id']; ?>" class="preview-link mt-auto">
+                                        <button class="preview-button btn">
+                                            <i class="fa-solid fa-eye"></i> View Details
+                                        </button>
+                                    </a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                
+                <!-- Display Open Library API results -->
+                <?php if(count($external_books) > 0): ?>
+                    <div class="google-books-separator">
+                        <div class="separator-line"></div>
+                        <h3>Additional Books from Open Library</h3>
+                        <div class="separator-line"></div>
+                    </div>
+                    <div class="books-container">
+                        <?php foreach($external_books as $book): ?>
+                            <div class="card book-card external-book">
+                                <div class="api-badge">Open Library</div>
+                                
+                                <div class="book-image">
+                                    <a href="book-detail.php?id=<?php echo $book['id']; ?>&api=1">
+                                        <?php if(!empty($book['cover_img'])): ?>
+                                            <img src="<?php echo $book['cover_img']; ?>" alt="<?php echo $book['title']; ?>" class="card-img-top">
+                                        <?php else: ?>
+                                            <img src="../images/book-loader.gif" alt="Book cover not available" class="card-img-top">
+                                        <?php endif; ?>
+                                    </a>
+                                </div>
+                                <div class="book-details card-body">
+                                    <h5 class="book-title card-title"><?php echo $book['title']; ?></h5>
+                                    
+                                    <p class="book-author card-text">By: <?php echo $book['author']; ?></p>
+                                    
+                                    <div class="book-rating-review">
+                                        <div class="rating">
+                                            <i class="fa-solid fa-star"></i> <?php echo $book['rating']; ?>
+                                        </div>
+                                        <span><?php echo $book['reviews']; ?> Reviews</span>
+                                    </div>
+                                    
+                                    <?php 
+                                    // Generate badges from categories if available
+                                    $categories = [];
+                                    if(!empty($book['categories'])) {
+                                        $categories = explode(',', $book['categories']);
+                                    }
+                                    // If no categories, generate from title
+                                    if(empty($categories)) {
+                                        $title = strtolower($book['title']);
+                                        if (strpos($title, 'harry') !== false || strpos($title, 'potter') !== false) {
+                                            $categories = ['fantasy', 'magic', 'adventure'];
+                                        } elseif (strpos($title, 'percy') !== false || strpos($title, 'olympus') !== false) {
+                                            $categories = ['mythology', 'adventure', 'young adult'];
+                                        } else {
+                                            $categories = ['fiction', 'literature'];
+                                        }
+                                    }
+                                    ?>
+                                    
+                                    <div class="badge">
+                                        <?php foreach(array_slice($categories, 0, 3) as $category): ?>
+                                            <span class="bg-light text-dark"><?php echo $category; ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    
+                                    <?php if(!empty($book['publisher'])): ?>
+                                        <p class="book-publisher card-text">Publisher: <?php echo $book['publisher']; ?></p>
+                                    <?php endif; ?>
+                                    
+                                    <?php if(!empty($book['published_date'])): ?>
+                                        <p class="book-date card-text">Published: <?php echo $book['published_date']; ?></p>
+                                    <?php endif; ?>
+                                    
+                                    <div class="book-price">
+                                        <strong>$<?php echo number_format($book['price'], 2); ?></strong>
+                                        <span class="book-old-price">$<?php echo number_format($book['original_price'], 2); ?></span>
+                                    </div>
+                                    
+                                    <a href="book-detail.php?id=<?php echo $book['id']; ?>&api=1" class="preview-link mt-auto">
+                                        <button class="preview-button btn">
+                                            <i class="fa-solid fa-eye"></i> View Details
+                                        </button>
+                                    </a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            <?php else: ?>
+                <div class="no-results">
+                    <i class="fa-solid fa-book-open" style="font-size: 50px; color: #ddd; margin-bottom: 20px;"></i>
+                    <h4>No books found matching your search criteria</h4>
+                    <p>Try different keywords or browse our book categories</p>
+                </div>
+            <?php endif; ?>
+        </div>
     </section>
     
     <footer>
@@ -616,7 +969,7 @@ if(isset($_GET['query']) && !empty($_GET['query'])) {
               <li><a href="login.php">Login</a></li>
               <li><a href="registration.php">Sign Up</a></li>
               <li><a href="cart-item.html">Cart</a></li>
-              <li><a href="checkout.html">Checkout</a></li>
+              <li><a href="checkout.php">Checkout</a></li>
             </ul>
           </div>
           <div class="our-store list">
@@ -653,5 +1006,55 @@ if(isset($_GET['query']) && !empty($_GET['query'])) {
     
     <button class="back-to-top"><i class="fa-solid fa-chevron-up"></i></button>
     <script src="../js/back-to-top.js"></script>
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Get search form
+  const searchForm = document.querySelector('.search-box form');
+  
+  // Add event listener for searching
+  searchForm.addEventListener('submit', function(e) {
+    const searchButton = this.querySelector('.search-icon');
+    searchButton.closest('.search-field').classList.add('loading');
+    
+    // No need to prevent default - we want the form to submit to search.php
+    
+    // Store search in localStorage for analytics (optional)
+    const searchQuery = document.querySelector('input[name="query"]').value;
+    localStorage.setItem('lastSearch', searchQuery);
+    
+    // Track popular searches (optional)
+    let popularSearches = JSON.parse(localStorage.getItem('popularSearches') || '[]');
+    popularSearches.push({
+      query: searchQuery,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Keep only last 10 searches
+    if (popularSearches.length > 10) {
+      popularSearches = popularSearches.slice(-10);
+    }
+    
+    localStorage.setItem('popularSearches', JSON.stringify(popularSearches));
+  });
+  
+  // Show recent searches (optional enhancement)
+  const searchInput = document.querySelector('input[name="query"]');
+  searchInput.addEventListener('focus', function() {
+    const lastSearch = localStorage.getItem('lastSearch');
+    if (lastSearch) {
+      // Create a suggestion element if you want
+      // This is optional enhancement
+    }
+  });
+  
+  // If there's a search query in the URL, populate the search field
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryParam = urlParams.get('query');
+  if (queryParam) {
+    searchInput.value = queryParam;
+  }
+});
+</script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -96,7 +96,7 @@ session_start();
       <div class="main">
         <div class="map">
             <iframe
-              src="https://maps.app.goo.gl/SAkXe8RfUDQ5izK38"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3220.0025960207417!2d5.407815075500382!3d36.19081870181361!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12f315995b02703f%3A0x104b35de6f73cfec!2sCentre%20Commercial%20%26%20de%20Loisirs%20Park%20Mall!5e0!3m2!1sfr!2sdz!4v1745071376760!5m2!1sfr!2sdz"
               height="70"
               style="width: 100%; border: none; border-radius: 5px"
               allowfullscreen=""
@@ -205,14 +205,14 @@ session_start();
             <li><a href="login.php">Login</a></li>
             <li><a href="registration.php">Sign Up</a></li>
             <li><a href="cart-item.html">Cart</a></li>
-            <li><a href="checkout.html">Checkout</a></li>
+            <li><a href="checkout.php">Checkout</a></li>
           </ul>
         </div>
         <div class="our-store list">
           <h4>Our Store</h4>
           <div class="map" style="margin-top: 1rem">
             <iframe
-              src="https://www.google.pl/maps/place/La+Citadelle/@36.0731987,4.7631778,17.63z/data=!4m15!1m8!3m7!1s0x128c913befaefcf7:0x2bf41af2fb4d69b3!2sBordj+Bou+Arreridj!3b1!8m2!3d36.0739925!4d4.7630271!16zL20vMDVzN193!3m5!1s0x128cbda273a1b465:0xdf3406ca7ab19b58!8m2!3d36.0730004!4d4.7636508!16s%2Fg%2F11q_c3n8tt?entry=ttu&g_ep=EgoyMDI1MDQxMy4wIKXMDSoJLDEwMjExNjQwSAFQAw%3D%3D"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3220.0025960207417!2d5.407815075500382!3d36.19081870181361!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12f315995b02703f%3A0x104b35de6f73cfec!2sCentre%20Commercial%20%26%20de%20Loisirs%20Park%20Mall!5e0!3m2!1sfr!2sdz!4v1745071376760!5m2!1sfr!2sdz"
               height="70"
               style="width: 100%; border: none; border-radius: 5px"
               allowfullscreen=""
@@ -223,8 +223,7 @@ session_start();
           <ul>
             <li>
               <a href=""
-                ><i class="fa-solid fa-location-dot"></i>832 Thompson Drive,San
-                Fransisco CA 94 107,United States</a
+                ><i class="fa-solid fa-location-dot"></i>CENTRE SECTION 192 GROUPE 08 SETIF, SETIF, Wilaya de Setif 19000</a
               >
             </li>
             <li>

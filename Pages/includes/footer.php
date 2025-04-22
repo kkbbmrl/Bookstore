@@ -28,7 +28,7 @@ $rootPath = $isInPagesDir ? '../' : '';
         <li><a href="<?php echo $isInPagesDir ? 'login.php' : 'Pages/login.php'; ?>">Login</a></li>
         <li><a href="<?php echo $isInPagesDir ? 'registration.php' : 'Pages/registration.php'; ?>">Sign Up</a></li>
         <li><a href="<?php echo $isInPagesDir ? 'cart-item.php' : 'Pages/cart-item.php'; ?>">Cart</a></li>
-        <li><a href="<?php echo $isInPagesDir ? 'checkout.html' : 'Pages/checkout.html'; ?>">Checkout</a></li>
+        <li><a href="<?php echo $isInPagesDir ? 'checkout.php' : 'Pages/checkout.php'; ?>">Checkout</a></li>
       </ul>
     </div>
   </div>

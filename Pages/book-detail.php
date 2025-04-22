@@ -6,6 +6,16 @@ session_start();
 $book_id = isset($_GET['id']) ? $_GET['id'] : null;
 $is_api_book = isset($_GET['api']) && $_GET['api'] == 1;
 
+// Check if the user has already liked this book
+$user_has_liked = false;
+if (isset($_SESSION['user_id']) && !$is_api_book && $book_id) {
+    $like_check_stmt = $conn->prepare("SELECT id FROM wishlists WHERE user_id = ? AND book_id = ?");
+    $like_check_stmt->bind_param("ii", $_SESSION['user_id'], $book_id);
+    $like_check_stmt->execute();
+    $like_check_result = $like_check_stmt->get_result();
+    $user_has_liked = ($like_check_result->num_rows > 0);
+}
+
 // Initialize book data with default values
 $book = [
     'title' => 'Book Title Not Found',
@@ -99,30 +109,127 @@ if ($book_id) {
             
             // Set book details from database
             $book['title'] = $db_book['title'];
-            $book['author'] = $db_book['author'];
-            $book['cover_img'] = !empty($db_book['cover_img']) ? $db_book['cover_img'] : "../images/book-loader.gif";
+            // Get author name from a separate query since book_authors table exists
+            $author_name = "Unknown Author";
+            try {
+                $author_stmt = $conn->prepare("
+                    SELECT a.name FROM authors a 
+                    JOIN book_authors ba ON a.id = ba.author_id 
+                    WHERE ba.book_id = ?
+                ");
+                if ($author_stmt) {
+                    $author_stmt->bind_param("i", $book_id);
+                    $author_stmt->execute();
+                    $author_result = $author_stmt->get_result();
+                    if ($author_result->num_rows > 0) {
+                        $author_data = $author_result->fetch_assoc();
+                        $author_name = $author_data['name'];
+                    }
+                }
+            } catch (Exception $e) {
+                // If error, keep default author name
+            }
+            $book['author'] = $author_name;
+            
+            // Handle cover image path
+            if(!empty($db_book['cover_image'])) {
+                // Check if the image path is just a filename or a full path
+                $cover_image = $db_book['cover_image'];
+                
+                // If it's just a filename, prepend the books directory path
+                if (!strpos($cover_image, '/') && !strpos($cover_image, '\\')) {
+                    $book['cover_img'] = "../images/books/" . $cover_image;
+                } else {
+                    // If it's a full path, keep it as is
+                    $book['cover_img'] = $cover_image;
+                }
+                
+                // Verify the file exists, if not use default
+                if (!file_exists($book['cover_img'])) {
+                    $book['cover_img'] = "../images/book-1.jpg";
+                }
+            } else {
+                $book['cover_img'] = "../images/book-1.jpg";
+            }
+
             $book['price'] = $db_book['price'];
-            $book['original_price'] = $db_book['original_price'];
-            $book['discount'] = $db_book['discount'];
-            $book['rating'] = $db_book['rating'];
-            $book['reviews'] = $db_book['reviews'];
-            $book['likes'] = $db_book['likes'];
-            $book['description'] = $db_book['description'];
-            $book['publisher'] = $db_book['publisher'];
-            $book['year'] = $db_book['year'];
-            $book['isbn'] = $db_book['isbn'];
-            $book['language'] = $db_book['language'];
-            $book['format'] = $db_book['format'];
-            $book['pages'] = $db_book['pages'];
+            // Map old_price to original_price
+            $book['original_price'] = isset($db_book['old_price']) ? $db_book['old_price'] : $db_book['price'];
             
-            // Get tags
-            $tags_stmt = $conn->prepare("SELECT tag_name FROM book_tags WHERE book_id = ?");
-            $tags_stmt->bind_param("i", $book_id);
-            $tags_stmt->execute();
-            $tags_result = $tags_stmt->get_result();
+            // Calculate discount if old_price exists
+            $discount = 0;
+            if (!empty($db_book['old_price']) && $db_book['old_price'] > 0) {
+                $discount = round(100 - (($db_book['price'] / $db_book['old_price']) * 100));
+            }
+            $book['discount'] = $discount;
             
-            while ($tag = $tags_result->fetch_assoc()) {
-                $book['tags'][] = $tag['tag_name'];
+            // Get average rating from reviews table
+            try {
+                $rating_stmt = $conn->prepare("
+                    SELECT AVG(rating) as avg_rating, COUNT(*) as review_count 
+                    FROM reviews 
+                    WHERE book_id = ?
+                ");
+                if ($rating_stmt) {
+                    $rating_stmt->bind_param("i", $book_id);
+                    $rating_stmt->execute();
+                    $rating_result = $rating_stmt->get_result();
+                    if ($rating_result->num_rows > 0) {
+                        $rating_data = $rating_result->fetch_assoc();
+                        $book['rating'] = round($rating_data['avg_rating'], 1) ?: 0;
+                        $book['reviews'] = $rating_data['review_count'];
+                    }
+                }
+            } catch (Exception $e) {
+                // If error, keep default rating/reviews
+            }
+            
+            // Get like count from wishlists
+            try {
+                $likes_stmt = $conn->prepare("
+                    SELECT COUNT(*) as like_count 
+                    FROM wishlists 
+                    WHERE book_id = ?
+                ");
+                if ($likes_stmt) {
+                    $likes_stmt->bind_param("i", $book_id);
+                    $likes_stmt->execute();
+                    $likes_result = $likes_stmt->get_result();
+                    if ($likes_result->num_rows > 0) {
+                        $likes_data = $likes_result->fetch_assoc();
+                        $book['likes'] = $likes_data['like_count'];
+                    }
+                }
+            } catch (Exception $e) {
+                // If error, keep default likes count
+            }
+            
+            $book['description'] = $db_book['description'] ?: 'No description available';
+            $book['publisher'] = $db_book['publisher'] ?: 'Unknown Publisher';
+            $book['year'] = $db_book['publication_date'] ? date('Y', strtotime($db_book['publication_date'])) : 'Unknown';
+            $book['isbn'] = $db_book['isbn'] ?: 'Unknown';
+            $book['language'] = $db_book['language'] ?: 'Unknown';
+            $book['format'] = 'Paperback'; // Default format since it's not in your DB schema
+            $book['pages'] = $db_book['pages'] ?: '0';
+            
+            // Get categories as tags
+            try {
+                $tags_stmt = $conn->prepare("
+                    SELECT c.name FROM categories c 
+                    JOIN book_categories bc ON c.id = bc.category_id 
+                    WHERE bc.book_id = ?
+                ");
+                if ($tags_stmt) {
+                    $tags_stmt->bind_param("i", $book_id);
+                    $tags_stmt->execute();
+                    $tags_result = $tags_stmt->get_result();
+                    
+                    while ($tag = $tags_result->fetch_assoc()) {
+                        $book['tags'][] = $tag['name'];
+                    }
+                }
+            } catch (Exception $e) {
+                // If error, keep default empty tags array
             }
         }
     }
@@ -155,11 +262,41 @@ function getRelatedBooks($book_id, $conn, $is_api_book) {
                 
                 if ($result->num_rows > 0) {
                     while ($row = $result->fetch_assoc()) {
+                        // Process cover image path
+                        $cover_image = !empty($row['cover_image']) ? $row['cover_image'] : "";
+                        
+                        // Check if the image path needs to be fixed
+                        if (!empty($cover_image)) {
+                            // Check all possible image locations
+                            $imagePaths = [
+                                "../images/books/" . $cover_image,
+                                "../images/" . $cover_image,
+                                "../" . $cover_image,
+                                $cover_image
+                            ];
+                            
+                            $imageFound = false;
+                            foreach($imagePaths as $path) {
+                                if(file_exists($path)) {
+                                    $cover_image = $path;
+                                    $imageFound = true;
+                                    break;
+                                }
+                            }
+                            
+                            if(!$imageFound) {
+                                $cover_image = "../images/book-1.jpg";
+                            }
+                        } else {
+                            $cover_image = "../images/book-1.jpg";
+                        }
+                        
+                        $row['cover_img'] = $cover_image;
                         $related_books[] = $row;
                     }
                 }
             } else {
-                // If book_tags table doesn't exist, try to get related books by author
+                // If book_tags table doesn't exist, try to get related books by author or category
                 $stmt = $conn->prepare("
                     SELECT b.* FROM books b
                     WHERE b.id != ? 
@@ -172,6 +309,36 @@ function getRelatedBooks($book_id, $conn, $is_api_book) {
                 
                 if ($result->num_rows > 0) {
                     while ($row = $result->fetch_assoc()) {
+                        // Process cover image path
+                        $cover_image = !empty($row['cover_image']) ? $row['cover_image'] : "";
+                        
+                        // Check if the image path needs to be fixed
+                        if (!empty($cover_image)) {
+                            // Check all possible image locations
+                            $imagePaths = [
+                                "../images/books/" . $cover_image,
+                                "../images/" . $cover_image,
+                                "../" . $cover_image,
+                                $cover_image
+                            ];
+                            
+                            $imageFound = false;
+                            foreach($imagePaths as $path) {
+                                if(file_exists($path)) {
+                                    $cover_image = $path;
+                                    $imageFound = true;
+                                    break;
+                                }
+                            }
+                            
+                            if(!$imageFound) {
+                                $cover_image = "../images/book-1.jpg";
+                            }
+                        } else {
+                            $cover_image = "../images/book-1.jpg";
+                        }
+                        
+                        $row['cover_img'] = $cover_image;
                         $related_books[] = $row;
                     }
                 }
@@ -305,6 +472,60 @@ function getBooksOnSale($conn) {
         
         if ($result->num_rows > 0) {
             while ($row = $result->fetch_assoc()) {
+                // Process cover image path
+                $cover_image = !empty($row['cover_image']) ? $row['cover_image'] : "";
+                
+                // Check if the image path needs to be fixed
+                if (!empty($cover_image)) {
+                    // If path doesn't already start with ../images
+                    if (strpos($cover_image, '../images') !== 0 && strpos($cover_image, '/images') !== 0) {
+                        // Check all possible image locations
+                        $imagePaths = [
+                            "../images/books/" . $cover_image,
+                            "../images/" . $cover_image,
+                            "../" . $cover_image,
+                            $cover_image
+                        ];
+                        
+                        $imageFound = false;
+                        foreach($imagePaths as $path) {
+                            if(file_exists($path)) {
+                                $cover_image = $path;
+                                $imageFound = true;
+                                break;
+                            }
+                        }
+                        
+                        if(!$imageFound) {
+                            $cover_image = "../images/book-1.jpg";
+                        }
+                    }
+                } else {
+                    $cover_image = "../images/book-1.jpg";
+                }
+                
+                $row['cover_img'] = $cover_image;
+                
+                // Set default discount if none exists
+                if (!isset($row['discount'])) {
+                    $original_price = isset($row['old_price']) ? $row['old_price'] : ($row['price'] * 1.5);
+                    if ($original_price > $row['price']) {
+                        $row['discount'] = round(100 - (($row['price'] / $original_price) * 100));
+                    } else {
+                        $row['discount'] = 0;
+                    }
+                }
+                
+                // Add rating if it doesn't exist
+                if (!isset($row['rating'])) {
+                    $row['rating'] = rand(30, 50) / 10; // 3.0 to 5.0
+                }
+                
+                // Add original_price if it doesn't exist
+                if (!isset($row['original_price'])) {
+                    $row['original_price'] = isset($row['old_price']) ? $row['old_price'] : ($row['price'] * 1.5);
+                }
+                
                 $sale_books[] = $row;
             }
         }
@@ -502,7 +723,13 @@ $books_on_sale = getBooksOnSale($conn);
               />
             </div>
             <button class="cartbtn"><i class="fa-solid fa-cart-shopping"></i>Add to Cart</button>
-            <button class="like"><i class="fa-regular fa-heart"></i></button>
+            <button class="like">
+              <?php if ($user_has_liked): ?>
+                <i class="fa-solid fa-heart"></i>
+              <?php else: ?>
+                <i class="fa-regular fa-heart"></i>
+              <?php endif; ?>
+            </button>
           </div>
         </div>
       </div>
@@ -562,31 +789,168 @@ $books_on_sale = getBooksOnSale($conn);
               </div>
             </div>
           </div>
-          <strong>Showing <?php echo min(4, $book['reviews']); ?> of <?php echo htmlspecialchars($book['reviews']); ?> reviews</strong>
-          <?php if($book['reviews'] > 0): ?>
+          
+          <?php
+          // Fetch actual reviews from the database
+          $reviews = [];
+          if (!$is_api_book && $book_id) {
+              $review_stmt = $conn->prepare("
+                  SELECT r.*, u.name, u.profile_picture 
+                  FROM reviews r 
+                  JOIN users u ON r.user_id = u.id 
+                  WHERE r.book_id = ? 
+                  ORDER BY r.created_at DESC
+                  LIMIT 10
+              ");
+              $review_stmt->bind_param("i", $book_id);
+              $review_stmt->execute();
+              $review_result = $review_stmt->get_result();
+              
+              while ($row = $review_result->fetch_assoc()) {
+                  $reviews[] = $row;
+              }
+          }
+          ?>
+          
+          <strong>Showing <?php echo count($reviews); ?> of <?php echo htmlspecialchars($book['reviews']); ?> reviews</strong>
+          
+          <?php if(isset($_SESSION['user_id'])): ?>
+            <!-- Review submission form -->
+            <div class="review-form-container">
+              <h4>Write Your Review</h4>
+              <form action="review_process.php" method="post">
+                <input type="hidden" name="book_id" value="<?php echo htmlspecialchars($book_id); ?>">
+                <input type="hidden" name="is_api_book" value="<?php echo $is_api_book ? '1' : '0'; ?>">
+                
+                <div class="rating-selection">
+                  <label>Your Rating:</label>
+                  <div class="star-rating">
+                    <input type="radio" id="star5" name="rating" value="5" required><label for="star5"></label>
+                    <input type="radio" id="star4" name="rating" value="4"><label for="star4"></label>
+                    <input type="radio" id="star3" name="rating" value="3"><label for="star3"></label>
+                    <input type="radio" id="star2" name="rating" value="2"><label for="star2"></label>
+                    <input type="radio" id="star1" name="rating" value="1"><label for="star1"></label>
+                  </div>
+                </div>
+                
+                <div class="review-text-area">
+                  <label for="review_text">Your Review:</label>
+                  <textarea name="review_text" id="review_text" rows="5" required></textarea>
+                </div>
+                
+                <button type="submit" class="submit-review">Submit Review</button>
+              </form>
+            </div>
+            
+            <style>
+              .review-form-container {
+                margin-top: 30px;
+                padding: 20px;
+                background-color: #f9f9f9;
+                border-radius: 8px;
+              }
+              .review-form-container h4 {
+                margin-bottom: 15px;
+                color: #333;
+              }
+              .rating-selection {
+                margin-bottom: 15px;
+                display: flex;
+                align-items: center;
+              }
+              .star-rating {
+                display: inline-flex;
+                flex-direction: row-reverse;
+                margin-left: 15px;
+              }
+              .star-rating input {
+                display: none;
+              }
+              .star-rating label {
+                cursor: pointer;
+                width: 25px;
+                height: 25px;
+                background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="%23d4d4d4"/></svg>');
+                background-repeat: no-repeat;
+                background-position: center;
+                background-size: 23px;
+              }
+              .star-rating input:checked ~ label,
+              .star-rating label:hover,
+              .star-rating label:hover ~ label {
+                background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="%23ffc107"/></svg>');
+              }
+              .review-text-area {
+                margin-bottom: 15px;
+              }
+              .review-text-area label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: 500;
+              }
+              .review-text-area textarea {
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                resize: vertical;
+              }
+              .submit-review {
+                background-color: #6c5dd4;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: 600;
+              }
+              .submit-review:hover {
+                background-color: #5a4cbe;
+              }
+            </style>
+          <?php else: ?>
+            <div class="login-to-review">
+              <p>Please <a href="login.php?redirect=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>" style="color: #6c5dd4; font-weight: bold;">login</a> to write a review.</p>
+            </div>
+          <?php endif; ?>
+
+          <?php if(!empty($reviews)): ?>
             <div class="reviewer-container">
-              <div class="review">
-                <div class="img-detail">
-                  <img src="../images/man1.png" alt="">
-                  <div class="name">
-                    <h5>Recent Reviewer</h5>
-                    <small>Recent Date</small>
+              <?php foreach($reviews as $review): ?>
+                <div class="review">
+                  <div class="img-detail">
+                    <?php
+                    $profile_pic = !empty($review['profile_picture']) ? $review['profile_picture'] : '../images/man1.png';
+                    // Fix path if needed
+                    if (!file_exists($profile_pic) && strpos($profile_pic, 'uploads/') === 0) {
+                      $profile_pic = '../' . $profile_pic;
+                    }
+                    if (!file_exists($profile_pic)) {
+                      $profile_pic = '../images/man1.png';
+                    }
+                    ?>
+                    <img src="<?php echo htmlspecialchars($profile_pic); ?>" alt="">
+                    <div class="name">
+                      <h5><?php echo htmlspecialchars($review['name']); ?></h5>
+                      <small><?php echo date('F j, Y', strtotime($review['created_at'])); ?></small>
+                    </div>
+                  </div>
+                  <div class="review-footer">
+                    <p><?php echo htmlspecialchars($review['review_text']); ?></p>
+                    <div class="rating-star">
+                      <?php for($i = 0; $i < $review['rating']; $i++): ?>
+                        <i class="fa-solid fa-star"></i>
+                      <?php endfor; ?>
+                      <?php for($i = $review['rating']; $i < 5; $i++): ?>
+                        <i class="fa-regular fa-star"></i>
+                      <?php endfor; ?>
+                      <span><?php echo htmlspecialchars($review['rating']); ?>.0</span>
+                    </div>
                   </div>
                 </div>
-                <div class="review-footer">
-                  <p>This book has received positive feedback from readers.</p>
-                  <div class="rating-star">
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star"></i>
-                    <span>5.0</span>
-                  </div>
-                </div>
-              </div>
-              <?php if($book['reviews'] > 1): ?>
-                <button>View More</button>
+              <?php endforeach; ?>
+              <?php if(count($reviews) < $book['reviews']): ?>
+                <button onclick="window.location.href='all_reviews.php?book_id=<?php echo $book_id; ?>&api=<?php echo $is_api_book ? '1' : '0'; ?>'">View More</button>
               <?php endif; ?>
             </div>
           <?php else: ?>
@@ -650,12 +1014,12 @@ $books_on_sale = getBooksOnSale($conn);
                   ?>
                 </div>
                 <div class="rating-review">
-                  <span><i class="fa-solid fa-star"></i><?php echo htmlspecialchars($related_book['rating']); ?></span>
+                  <span><i class="fa-solid fa-star"></i><?php echo isset($related_book['rating']) ? htmlspecialchars($related_book['rating']) : '4.0'; ?></span>
                   <span>244 Reviews</span>
                 </div>
                 <div class="price">
                   <strong>$<?php echo htmlspecialchars($related_book['price']); ?></strong>
-                  <strike>$<?php echo htmlspecialchars($related_book['original_price']); ?></strike>
+                  <strike>$<?php echo isset($related_book['original_price']) ? htmlspecialchars($related_book['original_price']) : htmlspecialchars($related_book['price']); ?></strike>
                 </div>
                 <div class="btn">
                   <button class="cartbtn"><i class="fa-solid fa-cart-shopping"></i>Add to cart</button>
@@ -664,7 +1028,7 @@ $books_on_sale = getBooksOnSale($conn);
             </div>
           <?php endforeach; ?>
           <div class="morebtn">
-            <button class="view-more">View More</button>
+            <button class="view-more" style="cursor: pointer;" onclick="window.location.href='book-filter.php'">View More</button>
           </div>
         </div>
       </div>
@@ -684,10 +1048,26 @@ $books_on_sale = getBooksOnSale($conn);
             <?php foreach ($books_on_sale as $sale_book): ?>
               <li class="card">
                 <div class="img">
-                  <img src="<?php echo htmlspecialchars($sale_book['cover_img']); ?>" alt="" />
+                  <?php if(isset($sale_book['id'])): ?>
+                    <a href="book-detail.php?id=<?php echo htmlspecialchars($sale_book['id']); ?>">
+                      <img src="<?php echo htmlspecialchars($sale_book['cover_img']); ?>" alt="" />
+                    </a>
+                  <?php else: ?>
+                    <a href="book-filter.php">
+                      <img src="<?php echo htmlspecialchars($sale_book['cover_img']); ?>" alt="" />
+                    </a>
+                  <?php endif; ?>
                   <span class="badge"><?php echo htmlspecialchars($sale_book['discount']); ?>%</span>
                 </div>
-                <h5><?php echo htmlspecialchars($sale_book['title']); ?></h5>
+                <?php if(isset($sale_book['id'])): ?>
+                  <a href="book-detail.php?id=<?php echo htmlspecialchars($sale_book['id']); ?>" style="color: inherit; text-decoration: none;">
+                    <h5><?php echo htmlspecialchars($sale_book['title']); ?></h5>
+                  </a>
+                <?php else: ?>
+                  <a href="book-filter.php" style="color: inherit; text-decoration: none;">
+                    <h5><?php echo htmlspecialchars($sale_book['title']); ?></h5>
+                  </a>
+                <?php endif; ?>
                 <div class="genre">
                   <?php 
                   // Generate dynamic genre tags based on book title
@@ -715,7 +1095,7 @@ $books_on_sale = getBooksOnSale($conn);
                   ?>
                 </div>
                 <div class="footer">
-                  <span class="star"><i class="fa fa-star"></i> <?php echo htmlspecialchars($sale_book['rating']); ?></span>
+                  <span class="star"><i class="fa fa-star"></i> <?php echo isset($sale_book['rating']) ? htmlspecialchars($sale_book['rating']) : '4.0'; ?></span>
                   <div class="price">
                     <span>$<?php echo htmlspecialchars($sale_book['price']); ?></span>
                     <span><strike>$<?php echo htmlspecialchars($sale_book['original_price']); ?></strike></span>
@@ -836,7 +1216,7 @@ $books_on_sale = getBooksOnSale($conn);
             <li><a href="login.php">Login</a></li>
             <li><a href="registration.php">Sign Up</a></li>
             <li><a href="cart-item.html">Cart</a></li>
-            <li><a href="checkout.html">Checkout</a></li>
+            <li><a href="checkout.php">Checkout</a></li>
           </ul>
         </div>
         <div class="our-store list">
@@ -881,5 +1261,112 @@ $books_on_sale = getBooksOnSale($conn);
   <script src="../js/repeat-js.js"></script>
     <script src="../js/increment-decrement.js"></script>
     <script src="../js/back-to-top.js"></script>
+    
+    <!-- Like functionality script -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Like button functionality
+        const likeBtn = document.querySelector('.like');
+        if (likeBtn) {
+          likeBtn.addEventListener('click', function() {
+            <?php if (isset($_SESSION['user_id'])): ?>
+              const bookId = <?php echo json_encode($book_id); ?>;
+              const isApiBook = <?php echo json_encode($is_api_book); ?>;
+              
+              // Send AJAX request to like_process.php
+              const formData = new FormData();
+              formData.append('book_id', bookId);
+              formData.append('is_api_book', isApiBook ? '1' : '0');
+              
+              fetch('like_process.php', {
+                method: 'POST',
+                body: formData
+              })
+              .then(response => response.json())
+              .then(data => {
+                if (data.success) {
+                  // Update like button icon
+                  const heartIcon = likeBtn.querySelector('i');
+                  if (data.action === 'liked') {
+                    heartIcon.className = 'fa-solid fa-heart';
+                    // Show success message
+                    showToast('Added to favorites!');
+                  } else {
+                    heartIcon.className = 'fa-regular fa-heart';
+                    // Show success message
+                    showToast('Removed from favorites.');
+                  }
+                  
+                  // Update like count
+                  const likesCount = document.querySelector('.comment-like small:nth-child(2) span');
+                  if (likesCount) {
+                    likesCount.textContent = data.likes + ' Likes';
+                  }
+                } else {
+                  // Show error message
+                  showToast(data.message || 'An error occurred.');
+                }
+              })
+              .catch(error => {
+                console.error('Error:', error);
+                showToast('An error occurred while processing your request.');
+              });
+            <?php else: ?>
+              // Redirect to login page
+              window.location.href = 'login.php?redirect=' + encodeURIComponent(window.location.href);
+            <?php endif; ?>
+          });
+        }
+      });
+      
+      // Function to show toast message
+      function showToast(message) {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+          toastContainer = document.createElement('div');
+          toastContainer.id = 'toast-container';
+          document.body.appendChild(toastContainer);
+          
+          // Add styles for the toast container
+          toastContainer.style.position = 'fixed';
+          toastContainer.style.bottom = '20px';
+          toastContainer.style.right = '20px';
+          toastContainer.style.zIndex = '1000';
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        
+        // Style the toast
+        toast.style.minWidth = '250px';
+        toast.style.backgroundColor = '#6c5dd4';
+        toast.style.color = 'white';
+        toast.style.padding = '12px';
+        toast.style.borderRadius = '4px';
+        toast.style.marginTop = '10px';
+        toast.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease-in-out';
+        
+        // Add toast to container
+        toastContainer.appendChild(toast);
+        
+        // Show the toast
+        setTimeout(() => {
+          toast.style.opacity = '1';
+        }, 10);
+        
+        // Hide and remove the toast after a delay
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          setTimeout(() => {
+            toastContainer.removeChild(toast);
+          }, 300);
+        }, 3000);
+      }
+    </script>
   </body>
 </html>

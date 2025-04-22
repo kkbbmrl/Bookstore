@@ -198,7 +198,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <li><a href="pages/login.php">Login</a></li>
             <li><a href="pages/registration.php">Sign Up</a></li>
             <li><a href="pages/cart-item.html">Cart</a></li>
-            <li><a href="pages/checkout.html">Checkout</a></li>
+            <li><a href="pages/checkout.php">Checkout</a></li>
           </ul>
         </div>
         <div class="our-store list">
@@ -216,8 +216,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
           <ul>
             <li>
               <a href=""
-                ><i class="fa-solid fa-location-dot"></i>832 Thompson Drive,San
-                Fransisco CA 94 107,United States</a
+                ><i class="fa-solid fa-location-dot"></i>CENTRE SECTION 192 GROUPE 08 SETIF, SETIF, Wilaya de Setif 19000</a
               >
             </li>
             <li>

@@ -9,6 +9,22 @@ $cartPath = $isInPagesDir ? 'cart-item.html' : 'Pages/cart-item.html';
 $loginPath = $isInPagesDir ? 'login.php' : 'Pages/login.php';
 $logoutPath = $isInPagesDir ? 'logout.php' : 'Pages/logout.php';
 $registrationPath = $isInPagesDir ? 'registration.php' : 'Pages/registration.php';
+$favoritesPath = $isInPagesDir ? 'favorites.php' : 'Pages/favorites.php';
+
+// Get user's like count if logged in
+$likeCount = 0;
+if (isset($_SESSION['user_id'])) {
+    // Query the database for the count of user's liked books
+    $user_id = $_SESSION['user_id'];
+    $like_stmt = $conn->prepare("SELECT COUNT(*) as like_count FROM wishlists WHERE user_id = ?");
+    $like_stmt->bind_param("i", $user_id);
+    $like_stmt->execute();
+    $like_result = $like_stmt->get_result();
+    if ($like_result && $like_result->num_rows > 0) {
+        $like_data = $like_result->fetch_assoc();
+        $likeCount = $like_data['like_count'];
+    }
+}
 ?>
 <header>
   <nav class="navbar-2">
@@ -37,9 +53,19 @@ $registrationPath = $isInPagesDir ? 'registration.php' : 'Pages/registration.php
       </form>
     </div>
     <div class="nav-end">
-      <button class="likebtn">
-        <i class="fa-regular fa-heart"></i> <span>35</span>
-      </button>
+      <?php if(isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true): ?>
+        <a href="<?php echo $favoritesPath; ?>" style="text-decoration: none;">
+          <button class="likebtn">
+            <i class="fa-regular fa-heart"></i> <span><?php echo $likeCount; ?></span>
+          </button>
+        </a>
+      <?php else: ?>
+        <a href="<?php echo $loginPath; ?>?redirect=<?php echo urlencode($favoritesPath); ?>" style="text-decoration: none;">
+          <button class="likebtn">
+            <i class="fa-regular fa-heart"></i> <span>0</span>
+          </button>
+        </a>
+      <?php endif; ?>
       <button class="cart">
         <a href="<?php echo $cartPath; ?>"><i class="fa-solid fa-cart-shopping"></i> <span>4</span></a>
       </button>

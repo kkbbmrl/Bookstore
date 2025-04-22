@@ -278,7 +278,7 @@
               <td>$506</td>
             </tr>
           </table>
-          <button><a href="checkout.html">Proceed To Checkout</a></button>
+          <button><a href="checkout.php">Proceed To Checkout</a></button>
         </div>
       </div>
     </section>
@@ -465,7 +465,7 @@
             <li><a href="login.php">Login</a></li>
             <li><a href="registration.php">Sign Up</a></li>
             <li><a href="cart-item.html">Cart</a></li>
-            <li><a href="checkout.html">Checkout</a></li>
+            <li><a href="checkout.php">Checkout</a></li>
           </ul>
         </div>
         <div class="our-store list">

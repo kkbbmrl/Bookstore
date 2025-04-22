@@ -262,7 +262,7 @@
               <li><a href="login.php">Login</a></li>
               <li><a href="registration.php">Sign Up</a></li>
               <li><a href="cart-item.html">Cart</a></li>
-              <li><a href="checkout.html">Checkout</a></li>
+              <li><a href="checkout.php">Checkout</a></li>
             </ul>
           </div>
           <div class="our-store list">
@@ -280,8 +280,7 @@
             <ul>
               <li>
                 <a href=""
-                  ><i class="fa-solid fa-location-dot"></i>832 Thompson Drive,San
-                  Fransisco CA 94 107,United States</a
+                  ><i class="fa-solid fa-location-dot"></i>CENTRE SECTION 192 GROUPE 08 SETIF, SETIF, Wilaya de Setif 19000</a
                 >
               </li>
               <li>

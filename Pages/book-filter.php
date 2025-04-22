@@ -1,3 +1,21 @@
+<?php
+require_once '../connection.php';
+session_start();
+
+// Get user's liked book IDs if logged in
+$user_liked_books = [];
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $like_stmt = $conn->prepare("SELECT book_id FROM wishlists WHERE user_id = ?");
+    $like_stmt->bind_param("i", $user_id);
+    $like_stmt->execute();
+    $like_result = $like_stmt->get_result();
+    
+    while ($row = $like_result->fetch_assoc()) {
+        $user_liked_books[] = $row['book_id'];
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -102,6 +120,55 @@
       }
       .search-field {
         position: relative;
+      }
+      /* Like button styles */
+      .book-card .img {
+        position: relative;
+      }
+      .book-card .like {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: white;
+        border: none;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        z-index: 2;
+      }
+      .book-card .like i {
+        font-size: 18px;
+        color: #777;
+        transition: all 0.2s ease;
+      }
+      .book-card .like.liked i {
+        color: #ff5252;
+      }
+      .book-card .like i.fa-solid {
+        color: #ff5252;
+      }
+      /* Toast styles */
+      #toast-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+      }
+      .toast {
+        min-width: 250px;
+        background-color: #6c5dd4;
+        color: white;
+        padding: 12px;
+        border-radius: 4px;
+        margin-top: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
       }
     </style>
   </head>
@@ -544,7 +611,7 @@
             <li><a href="login.php">Login</a></li>
             <li><a href="registration.php">Sign Up</a></li>
             <li><a href="cart-item.html">Cart</a></li>
-            <li><a href="checkout.html">Checkout</a></li>
+            <li><a href="checkout.php">Checkout</a></li>
           </ul>
         </div>
         <div class="our-store list">
@@ -779,6 +846,10 @@
             const title = book.title || 'Unknown Title';
             const authorName = book.author_name ? book.author_name[0] : 'Unknown Author';
             
+            // Get book ID from key - extracting just the ID part
+            const bookKey = book.key || '';
+            const bookId = bookKey.split('/').pop();
+            
             // Extract up to 3 subjects or categories
             const subjects = book.subject || [];
             const subjectHTML = subjects.slice(0, 3).map(subject => 
@@ -791,8 +862,8 @@
             booksHTML += `
               <div class="book-card">
                 <div class="img">
-                  <a href="book-detail.php?id=${book.key}"><img src="${coverURL}" alt="${title}" /></a>
-                  <button class="like" id="likebtn">
+                  <a href="book-detail.php?id=${bookId}&api=1"><img src="${coverURL}" alt="${title}" /></a>
+                  <button class="like" data-book-id="${bookId}" data-is-api="1">
                     <i class="fa-regular fa-heart"></i>
                   </button>
                 </div>
@@ -815,6 +886,9 @@
           });
 
           booksContainer.innerHTML = booksHTML;
+          
+          // Initialize like buttons
+          initializeLikeButtons();
         }
 
         function updatePagination() {
@@ -912,5 +986,165 @@
     <script src="../js/repeat-js.js"></script>
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
     <script src="../js/back-to-top.js"></script>
+    
+    <!-- Like functionality script -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // Get liked books from PHP as JSON
+        const userLikedBooks = <?php echo json_encode($user_liked_books); ?>;
+      });
+      
+      // Initialize like buttons
+      function initializeLikeButtons() {
+        const likeButtons = document.querySelectorAll('.like');
+        
+        likeButtons.forEach(button => {
+          const bookId = button.getAttribute('data-book-id');
+          const isApi = button.getAttribute('data-is-api') === '1';
+          const heartIcon = button.querySelector('i');
+          
+          // Check if this book is already liked (for API books we need to do an AJAX check)
+          if (isApi) {
+            // For API books, check with AJAX if this placeholder exists and is liked
+            checkApiBookLikeStatus(bookId, button);
+          } else {
+            // For local books, we already have the list of liked books
+            const isLiked = userLikedBooks.includes(parseInt(bookId));
+            if (isLiked) {
+              button.classList.add('liked');
+              heartIcon.className = 'fa-solid fa-heart';
+            }
+          }
+          
+          // Add click handler
+          button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Check if user is logged in
+            <?php if(isset($_SESSION['user_id'])): ?>
+              handleLikeAction(this);
+            <?php else: ?>
+              // Redirect to login page
+              window.location.href = 'login.php?redirect=' + encodeURIComponent(window.location.href);
+            <?php endif; ?>
+          });
+        });
+      }
+      
+      // Check if an API book is liked
+      function checkApiBookLikeStatus(bookId, button) {
+        <?php if(isset($_SESSION['user_id'])): ?>
+          // For API books, we need to check if there's a placeholder entry and if it's liked
+          const formData = new FormData();
+          formData.append('book_id', bookId);
+          formData.append('is_api_book', '1');
+          formData.append('action', 'check');
+          
+          fetch('check_like_status.php', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success && data.isLiked) {
+              button.classList.add('liked');
+              button.querySelector('i').className = 'fa-solid fa-heart';
+            }
+          })
+          .catch(error => {
+            console.error('Error checking like status:', error);
+          });
+        <?php endif; ?>
+      }
+      
+      // Handle like/unlike action
+      function handleLikeAction(button) {
+        const bookId = button.getAttribute('data-book-id');
+        const isApi = button.getAttribute('data-is-api') === '1';
+        const heartIcon = button.querySelector('i');
+        
+        const formData = new FormData();
+        formData.append('book_id', bookId);
+        formData.append('is_api_book', isApi ? '1' : '0');
+        
+        fetch('like_process.php', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            if (data.action === 'liked') {
+              button.classList.add('liked');
+              heartIcon.className = 'fa-solid fa-heart';
+              showToast('Added to favorites!');
+            } else {
+              button.classList.remove('liked');
+              heartIcon.className = 'fa-regular fa-heart';
+              showToast('Removed from favorites.');
+            }
+            
+            // Update like count in header if available
+            updateHeaderLikeCount();
+          } else {
+            showToast(data.message || 'An error occurred.');
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showToast('An error occurred while processing your request.');
+        });
+      }
+      
+      // Update header like count
+      function updateHeaderLikeCount() {
+        const headerLikeCount = document.querySelector('.nav-end .likebtn span');
+        if (headerLikeCount) {
+          fetch('get_like_count.php')
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                headerLikeCount.textContent = data.count;
+              }
+            })
+            .catch(error => {
+              console.error('Error updating like count:', error);
+            });
+        }
+      }
+      
+      // Function to show toast message
+      function showToast(message) {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+          toastContainer = document.createElement('div');
+          toastContainer.id = 'toast-container';
+          document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        
+        // Add toast to container
+        toastContainer.appendChild(toast);
+        
+        // Show the toast
+        setTimeout(() => {
+          toast.style.opacity = '1';
+        }, 10);
+        
+        // Hide and remove the toast after a delay
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          setTimeout(() => {
+            toastContainer.removeChild(toast);
+          }, 300);
+        }, 3000);
+      }
+    </script>
   </body>
 </html>

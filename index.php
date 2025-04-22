@@ -68,7 +68,7 @@ if(isset($_SESSION['contact_error'])) {
       <nav class="navbar">
         <div class="logo">
           <div class="img">
-            <img src="../images/logo.png" alt="" />
+            <img src="images/logo.png" alt="" />
           </div>
           <div class="logo-header">
             <h4><a href="index.php">Fassila</a></h4>
@@ -79,7 +79,7 @@ if(isset($_SESSION['contact_error'])) {
           <div class="logo">
             <div class="title">
               <div class="img">
-                <img src="../images/logo.png" alt="" />
+                <img src="images/logo.png" alt="" />
               </div>
               <div class="logo-header">
                 <h4><a href="index.php">Fassila</a></h4>
@@ -722,7 +722,7 @@ if(isset($_SESSION['contact_error'])) {
       <div class="circle-2"></div>
     </section>
 
-    <section class="news">
+    <!-- <section class="news">
       <div class="heading">
         <div class="title">
           <h4>Latest News</h4>
@@ -817,7 +817,7 @@ if(isset($_SESSION['contact_error'])) {
           </div>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <section class="countdown">
       <div class="container">
@@ -879,7 +879,7 @@ if(isset($_SESSION['contact_error'])) {
         <div class="logo-description">
           <div class="logo">
             <div class="img">
-              <img src="../images/logo.png" alt="" />
+              <img src="images/logo.png" alt="" />
             </div>
             <div class="title">
               <h4>Fassila</h4>
@@ -953,8 +953,7 @@ if(isset($_SESSION['contact_error'])) {
           <ul>
             <li>
               <a href=""
-                ><i class="fa-solid fa-location-dot"></i>832 Thompson Drive,San
-                Fransisco CA 94 107,United States</a
+                ><i class="fa-solid fa-location-dot"></i>CENTRE SECTION 192 GROUPE 08 SETIF, SETIF, Wilaya de Setif 19000</a
               >
             </li>
             <li>
