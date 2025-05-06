@@ -1,0 +1,54 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{tikz-uml}
+\usepackage[a4paper,margin=1in]{geometry}
+
+\begin{document}
+\title{Bookstore Order Management Classes}
+\author{}
+\date{}
+\maketitle
+
+\begin{center}
+\begin{tikzpicture}[node distance=2cm]
+% CartItem Class
+\umlclass[x=0,y=0]{CartItem}{
+    + id: int [PK]\\
+    + user\_id: int [FK]\\
+    + book\_id: int [FK]\\
+    + quantity: int\\
+    + added\_at: timestamp
+}{}
+
+% Order Class
+\umlclass[x=8,y=0]{Order}{
+    + id: int [PK]\\
+    + user\_id: int [FK]\\
+    + order\_date: timestamp\\
+    + status: enum\\
+    + total\_amount: decimal(10,2)\\
+    + shipping\_address: text\\
+    + billing\_address: text\\
+    + payment\_method: varchar(50)\\
+    + shipping\_fee: decimal(10,2)\\
+    + tracking\_number: varchar(100)\\
+    + notes: text
+}{}
+
+% OrderItem Class
+\umlclass[x=4,y=-6]{OrderItem}{
+    + id: int [PK]\\
+    + order\_id: int [FK]\\
+    + book\_id: int [FK]
+}{}
+
+% Relationships
+\umlassoc{Order}{OrderItem}{1}{*}{contains}
+\umlassoc{CartItem}{Order}{*}{1}{becomes}
+
+\end{tikzpicture}
+\end{center}
+
+\end{document}

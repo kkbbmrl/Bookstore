@@ -1,0 +1,42 @@
+@startuml "Les cas du visiteur et du client"
+
+left to right direction
+skinparam ActorStyle awesome
+
+actor "Visiteur" as visitor
+actor "Client" as client
+actor "Système de\npaiement\nsécurisé" as payment
+
+rectangle "Fassila Bookstore System" {
+    usecase "S'enregistrer" as register
+    usecase "Consulter\nproduit" as view_product
+    usecase "Rechercher\nproduit" as search_product
+    usecase "Gérer\npanier" as manage_cart
+    usecase "Passer une\ncommande" as place_order
+    usecase "Suivre ses\ncommandes" as track_orders
+    usecase "Modifier son\ncompte" as modify_account
+    usecase "S'authentifier" as auth
+}
+
+' Visitor associations
+visitor --> register
+visitor --> view_product
+visitor --> search_product
+
+' Client associations
+client --> view_product
+client --> search_product
+client --> manage_cart
+client --> place_order
+client --> track_orders
+client --> modify_account
+
+' Payment system association
+place_order -- payment
+
+' Include relationships
+place_order ..> auth : <<include>>
+track_orders ..> auth : <<include>>
+modify_account ..> auth : <<include>>
+
+@enduml

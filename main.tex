@@ -1,0 +1,189 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[arabic,french,english]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{anyfontsize}
+\usepackage{fancyhdr}
+\usepackage[skip=10pt plus1pt, indent]{parskip}
+\usepackage[acronym]{glossaries}
+\usepackage[automake]{glossaries-extra}
+\usepackage{hyperref}
+\usepackage[ruled, linesnumbered]{algorithm2e}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[numbers]{natbib}
+\usepackage{mathptmx}
+\usepackage{etoolbox}
+\usepackage{atbegshi} % For conditional logo
+\usepackage{eso-pic}
+\usepackage{indentfirst}
+
+% Logo appears on all pages except the first
+\AtBeginShipout{%
+  \ifnum\value{page}=1\relax
+    % no logo
+  \else
+    \AddToShipoutPictureBG*{%
+      \AtPageLowerLeft{%
+        \hbox{\hspace*{1cm}\raisebox{1cm}{\includegraphics[width=3cm]{Images/fassilalogo.png}}}%
+      }%
+    }%
+  \fi
+}
+
+% Replace the fancy page style definitions
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[R]{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot{}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+}
+
+\urlstyle{same}
+
+\setstretch{1.5}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+\addto\captionsenglish{%
+\renewcommand*\contentsname{Table of Contents}
+\renewcommand{\bibname}{References}
+}
+
+\newgeometry{left=2.54cm,right=2.54cm,top=2.54cm,bottom=2.54cm}
+
+\makeglossaries
+\newacronym{mi}{MI}{Math et Informatique}
+\newacronym{ia}{IA}{Intelligence Artificielle}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    keywordstyle=\color{blue},
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\renewcommand{\labelenumii}{\arabic{enumi}.\arabic{enumii}}
+\renewcommand{\labelenumiii}{\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}}
+\renewcommand{\labelenumiv}{\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}.\arabic{enumiv}}
+
+\DeclareRobustCommand{\timesr}{\fontfamily{artimes}\selectfont}
+\let\times\relax
+\DeclareMathSymbol{\times}{\mathbin}{symbols}{"02}
+
+\begin{document}
+
+\input{front_page}
+
+% Start page numbering from ii after front page
+\setcounter{page}{2}
+\pagenumbering{roman}
+
+\input{Dedication}
+\addcontentsline{toc}{chapter}{Dédicaces}
+
+\input{Acknowledgment}
+\addcontentsline{toc}{chapter}{Remerciements}
+
+\input{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+\input{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+
+\begin{otherlanguage}{arabic}
+\input{Arabic_Abstract}
+\end{otherlanguage}
+
+\tableofcontents
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{Abbreviations List}
+\printglossary[type=\acronymtype, title={Abbreviations List}, nonumberlist]
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{List of Tables}
+\listoftables
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{List of Algorithms}
+\listofalgorithms
+
+\cleardoublepage
+
+% Before main content, add the fancy header configuration
+\pagestyle{fancy}
+\lhead[\chaptername~\thechapter]{\rightmark}
+\rhead[\leftmark]{}
+\lfoot[\thepage]{}
+\cfoot{}
+\rfoot[]{\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\addtolength{\headheight}{0.5pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{\fancyhead{}
+\renewcommand{\headrulewidth}{0pt}}
+\fancyheadoffset{0cm}
+
+% Start Arabic page numbering for main content
+\setcounter{page}{1}
+\pagenumbering{arabic}
+
+\input{Chapter1_Introduction}
+\input{Chapter2}
+\input{Chapter3}
+\input{Chapter4}
+\input{Chapter5_Conclusion}
+
+\addcontentsline{toc}{chapter}{References}
+\bibliographystyle{IEEEtranN}
+\bibliography{bibliography}
+
+\appendix
+\input{AppendixA}
+\input{AppendixB}
+
+\end{document}

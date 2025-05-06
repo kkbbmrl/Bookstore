@@ -161,8 +161,7 @@ if(isset($_SESSION['contact_error'])) {
           <div class="service-content">
             <h5>Quick Delivery</h5>
             <p>
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Id,
-              exercitationem.
+            Fast and reliable delivery across all 58 wilayas of Algeria. Get your order wherever you are!
             </p>
           </div>
         </div>
@@ -173,8 +172,7 @@ if(isset($_SESSION['contact_error'])) {
           <div class="service-content">
             <h5>Secure Payment</h5>
             <p>
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Id,
-              exercitationem.
+            Secure payment available via Baridi Mob and other trusted methods. Shop with confidence!
             </p>
           </div>
         </div>
@@ -185,8 +183,7 @@ if(isset($_SESSION['contact_error'])) {
           <div class="service-content">
             <h5>Best Quality</h5>
             <p>
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Id,
-              exercitationem.
+            Discover our collection of top-quality books — carefully selected for the best reading experience.
             </p>
           </div>
         </div>
@@ -197,8 +194,7 @@ if(isset($_SESSION['contact_error'])) {
           <div class="service-content">
             <h5>Return Guarantee</h5>
             <p>
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Id,
-              exercitationem.
+            Enjoy peace of mind with our 7-day return guarantee — your satisfaction is our priority.
             </p>
           </div>
         </div>
@@ -888,10 +884,10 @@ if(isset($_SESSION['contact_error'])) {
           </div>
           <div class="logo-body">
             <p>
-              Lorem ipsum, dolor sit amet consectetur adipisicing elit. Magnam
-              voluptates eius quasi reiciendis recusandae provident veritatis
-              sequi, dolores architecto dolor possimus quos
-            </p>
+            Fassila is an Algerian online bookstore where stories begin with a comma 
+            a space to pause, explore, and discover books that inspire. 
+            From local voices to global classics, we bring the world of reading closer to you.
+            </p>        
           </div>
           <div class="social-links">
             <h4>Follow Us</h4>
@@ -979,5 +975,46 @@ if(isset($_SESSION['contact_error'])) {
     <script src="js/repeat-js.js"></script>
     <script src="js/add-to-cart.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.3.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const cartButtons = document.querySelectorAll('.cartbtn');
+
+        cartButtons.forEach(button => {
+          button.addEventListener('click', function() {
+            const bookId = this.dataset.bookId;
+            const bookName = this.dataset.bookName;
+            const bookPrice = this.dataset.bookPrice;
+            const bookImage = this.dataset.bookImage;
+            const quantity = 1; // Default quantity
+
+            const formData = new URLSearchParams();
+            formData.append('book_id', bookId);
+            formData.append('book_name', bookName);
+            formData.append('book_price', bookPrice);
+            formData.append('book_image', bookImage);
+            formData.append('quantity', quantity);
+
+            fetch('api/add_to_cart.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: formData.toString()
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.status === 'success') {
+                alert('Book added to cart successfully!');
+              } else {
+                alert('Error: ' + data.message);
+              }
+            })
+            .catch(error => {
+              console.error('Error:', error);
+            });
+          });
+        });
+      });
+    </script>
   </body>
 </html>

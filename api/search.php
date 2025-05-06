@@ -1,4 +1,4 @@
-<?php
+    <?php
 header('Content-Type: application/json');
 
 // Database connection

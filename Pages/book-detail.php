@@ -722,7 +722,13 @@ $books_on_sale = getBooksOnSale($conn);
                 data-field="quantity"
               />
             </div>
-            <button class="cartbtn"><i class="fa-solid fa-cart-shopping"></i>Add to Cart</button>
+            <button class="cartbtn" 
+              data-book-id="<?php echo htmlspecialchars($book_id); ?>" 
+              data-book-name="<?php echo htmlspecialchars($book['title']); ?>" 
+              data-book-price="<?php echo htmlspecialchars($book['price']); ?>" 
+              data-book-image="<?php echo htmlspecialchars($book['cover_img']); ?>">
+              <i class="fa-solid fa-cart-shopping"></i>Add to Cart
+            </button>
             <button class="like">
               <?php if ($user_has_liked): ?>
                 <i class="fa-solid fa-heart"></i>
@@ -1117,7 +1123,7 @@ $books_on_sale = getBooksOnSale($conn);
           <div class="service-content">
             <h5>Quick Delivery</h5>
             <p>
-              Fast shipping on all orders with tracking information provided.
+            Fast and reliable delivery across all 58 wilayas of Algeria. Get your order wherever you are!
             </p>
           </div>
         </div>
@@ -1239,7 +1245,7 @@ $books_on_sale = getBooksOnSale($conn);
       for (let i = 0; i < tabbtn.length; i++) {
         tabbtn[i].addEventListener('click',() => {
           let tabName = tabbtn[i].dataset.btn;
-          let tabContent = document.getElementById(tabName);
+          let tabContent = tabbtn[i].dataset.btn;
           let AllTabContent = document.querySelectorAll(".tabcontent");
           let tabbtns = document.querySelectorAll(".tablink");
           for (let j = 0; j < AllTabContent.length; j++) {
@@ -1367,6 +1373,49 @@ $books_on_sale = getBooksOnSale($conn);
           }, 300);
         }, 3000);
       }
+    </script>
+
+    <!-- Add to Cart functionality script -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const cartButton = document.querySelector('.cartbtn');
+
+        if (cartButton) {
+          cartButton.addEventListener('click', function() {
+            const bookId = this.dataset.bookId;
+            const bookName = this.dataset.bookName;
+            const bookPrice = this.dataset.bookPrice;
+            const bookImage = this.dataset.bookImage;
+            const quantity = document.querySelector('input[data-field="quantity"]').value || 1;
+
+            const formData = new URLSearchParams();
+            formData.append('book_id', bookId);
+            formData.append('book_name', bookName);
+            formData.append('book_price', bookPrice);
+            formData.append('book_image', bookImage);
+            formData.append('quantity', quantity);
+
+            fetch('../api/add_to_cart.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: formData.toString()
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.status === 'success') {
+                alert('Book added to cart successfully!');
+              } else {
+                alert('Error: ' + data.message);
+              }
+            })
+            .catch(error => {
+              console.error('Error:', error);
+            });
+          });
+        }
+      });
     </script>
   </body>
 </html>
