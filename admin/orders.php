@@ -12,23 +12,43 @@ $status = isset($_GET['status']) ? $_GET['status'] : '';
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 $orderId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
+// Define status colors and icons
+$statusColors = [
+    'pending' => 'warning',
+    'processing' => 'info',
+    'shipped' => 'primary',
+    'delivered' => 'success',
+    'cancelled' => 'danger'
+];
+
+$statusIcons = [
+    'pending' => 'clock',
+    'processing' => 'cog',
+    'shipped' => 'truck',
+    'delivered' => 'check-circle',
+    'cancelled' => 'times-circle'
+];
+
 // Handle order actions
 if ($action && $orderId) {
     switch ($action) {
         case 'update_status':
-            $newStatus = $_POST['status'];
-            $updateStmt = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
-            $updateStmt->bind_param("si", $newStatus, $orderId);
-            
-            if ($updateStmt->execute()) {
-                $_SESSION['success_message'] = "Order status updated successfully!";
-            } else {
-                $_SESSION['error_message'] = "Error updating order status: " . $conn->error;
+            if (isset($_POST['status'])) {
+                $newStatus = $_POST['status'];
+                $updateStmt = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
+                $updateStmt->bind_param("si", $newStatus, $orderId);
+                
+                if ($updateStmt->execute()) {
+                    $_SESSION['success_message'] = "Order status updated successfully!";
+                } else {
+                    $_SESSION['error_message'] = "Error updating order status: " . $conn->error;
+                }
+                
+                $updateStmt->close();
+                echo "<script>window.location.href = 'orders.php';</script>";
+                exit();
             }
-            
-            $updateStmt->close();
-            header("Location: orders.php");
-            exit();
+            break;
             
         case 'delete':
             // Delete order items first
@@ -48,8 +68,9 @@ if ($action && $orderId) {
             }
             
             $deleteOrderStmt->close();
-            header("Location: orders.php");
+            echo "<script>window.location.href = 'orders.php';</script>";
             exit();
+            break;
             
         case 'view':
             // The view action is handled below to display order details
@@ -134,68 +155,88 @@ if (isset($_GET['action']) && $_GET['action'] == 'view' && !empty($_GET['id'])) 
                                 FROM orders o
                                 JOIN users u ON o.user_id = u.id
                                 WHERE o.id = ?");
+    if (!$orderStmt) {
+        die("Error preparing order statement: " . $conn->error);
+    }
+    
     $orderStmt->bind_param("i", $viewId);
-    $orderStmt->execute();
+    if (!$orderStmt->execute()) {
+        die("Error executing order statement: " . $orderStmt->error);
+    }
+    
     $orderDetails = $orderStmt->get_result()->fetch_assoc();
     $orderStmt->close();
     
     // Get order items
     if ($orderDetails) {
-        $itemsStmt = $conn->prepare("SELECT oi.*, b.title, b.author, b.cover_img
+        $itemsStmt = $conn->prepare("SELECT oi.*, b.title, b.cover_image, GROUP_CONCAT(a.name SEPARATOR ', ') as authors
                                     FROM order_items oi
                                     JOIN books b ON oi.book_id = b.id
-                                    WHERE oi.order_id = ?");
-        $itemsStmt->bind_param("i", $viewId);
-        $itemsStmt->execute();
-        $itemsResult = $itemsStmt->get_result();
+                                    LEFT JOIN book_authors ba ON b.id = ba.book_id
+                                    LEFT JOIN authors a ON ba.author_id = a.id
+                                    WHERE oi.order_id = ?
+                                    GROUP BY oi.id");
+        if (!$itemsStmt) {
+            die("Error preparing items statement: " . $conn->error);
+        }
         
+        $itemsStmt->bind_param("i", $viewId);
+        if (!$itemsStmt->execute()) {
+            die("Error executing items statement: " . $itemsStmt->error);
+        }
+        
+        $itemsResult = $itemsStmt->get_result();
         while ($item = $itemsResult->fetch_assoc()) {
             $orderItems[] = $item;
         }
         
         $itemsStmt->close();
+    } else {
+        $_SESSION['error_message'] = "Order not found!";
+        header("Location: orders.php");
+        exit();
     }
 }
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4>Manage Orders</h4>
+    <h4 class="text-primary">
+        <i class="fas fa-shopping-cart me-2"></i>Manage Orders
+    </h4>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white py-3">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <i class="fas fa-shopping-cart mr-1"></i> All Orders
-                <span class="badge badge-secondary ml-2"><?php echo $totalOrders; ?></span>
+                <i class="fas fa-shopping-cart me-2"></i> All Orders
+                <span class="badge bg-secondary ms-2"><?php echo $totalOrders; ?></span>
             </div>
-            <div class="d-flex">
+            <div class="d-flex gap-2">
                 <!-- Status filter -->
-                <div class="mr-2">
-                    <select class="form-control" id="statusFilter" onchange="filterByStatus(this.value)">
+                <div>
+                    <select class="form-select" id="statusFilter" onchange="filterByStatus(this.value)">
                         <option value="">All Statuses</option>
-                        <option value="Pending" <?php echo ($status == 'Pending') ? 'selected' : ''; ?>>Pending</option>
-                        <option value="Processing" <?php echo ($status == 'Processing') ? 'selected' : ''; ?>>Processing</option>
-                        <option value="Shipped" <?php echo ($status == 'Shipped') ? 'selected' : ''; ?>>Shipped</option>
-                        <option value="Delivered" <?php echo ($status == 'Delivered') ? 'selected' : ''; ?>>Delivered</option>
-                        <option value="Cancelled" <?php echo ($status == 'Cancelled') ? 'selected' : ''; ?>>Cancelled</option>
+                        <?php foreach ($statusColors as $status => $color): ?>
+                            <option value="<?php echo $status; ?>" <?php echo ($status == strtolower($status)) ? 'selected' : ''; ?>>
+                                <?php echo ucfirst($status); ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <!-- Search form -->
-                <form class="form-inline" method="GET" action="">
+                <form class="d-flex" method="GET" action="">
                     <input type="hidden" name="status" value="<?php echo htmlspecialchars($status); ?>">
                     <div class="input-group">
                         <input type="text" class="form-control" placeholder="Search orders..." name="search" value="<?php echo htmlspecialchars($search); ?>">
-                        <div class="input-group-append">
-                            <button class="btn btn-outline-secondary" type="submit">
-                                <i class="fas fa-search"></i>
-                            </button>
-                            <?php if (!empty($search) || !empty($status)): ?>
-                                <a href="orders.php" class="btn btn-outline-danger">
-                                    <i class="fas fa-times"></i>
-                                </a>
-                            <?php endif; ?>
-                        </div>
+                        <button class="btn btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <?php if (!empty($search) || !empty($status)): ?>
+                            <a href="orders.php" class="btn btn-outline-danger">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </form>
             </div>
@@ -203,8 +244,8 @@ if (isset($_GET['action']) && $_GET['action'] == 'view' && !empty($_GET['id'])) 
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
                     <tr>
                         <th>Order ID</th>
                         <th>Customer</th>
@@ -221,7 +262,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'view' && !empty($_GET['id'])) 
                             <td>#<?php echo $order['id']; ?></td>
                             <td>
                                 <div>
-                                    <?php echo $order['user_name']; ?>
+                                    <strong><?php echo $order['user_name']; ?></strong>
                                     <small class="d-block text-muted"><?php echo $order['user_email']; ?></small>
                                 </div>
                             </td>
@@ -229,36 +270,21 @@ if (isset($_GET['action']) && $_GET['action'] == 'view' && !empty($_GET['id'])) 
                             <td>$<?php echo number_format($order['total_amount'], 2); ?></td>
                             <td>
                                 <?php
-                                $statusClass = '';
-                                switch($order['status']) {
-                                    case 'Pending':
-                                        $statusClass = 'warning';
-                                        break;
-                                    case 'Processing':
-                                        $statusClass = 'info';
-                                        break;
-                                    case 'Shipped':
-                                        $statusClass = 'primary';
-                                        break;
-                                    case 'Delivered':
-                                        $statusClass = 'success';
-                                        break;
-                                    case 'Cancelled':
-                                        $statusClass = 'danger';
-                                        break;
-                                    default:
-                                        $statusClass = 'secondary';
-                                }
+                                $currentStatus = strtolower($order['status']);
+                                $statusColor = $statusColors[$currentStatus] ?? 'secondary';
+                                $statusIcon = $statusIcons[$currentStatus] ?? 'question-circle';
                                 ?>
-                                <span class="badge badge-<?php echo $statusClass; ?>"><?php echo $order['status']; ?></span>
+                                <span class="badge bg-<?php echo $statusColor; ?> p-2">
+                                    <i class="fas fa-<?php echo $statusIcon; ?> me-1"></i>
+                                    <?php echo ucfirst($currentStatus); ?>
+                                </span>
                             </td>
                             <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="?action=view&id=<?php echo $order['id']; ?>" class="btn btn-outline-primary" title="View Order">
+                                <div class="btn-group">
+                                    <a href="view_order.php?id=<?php echo $order['id']; ?>" class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <button type="button" class="btn btn-outline-danger" title="Delete Order" 
-                                            onclick="confirmDelete(<?php echo $order['id']; ?>)">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteOrder(<?php echo $order['id']; ?>)">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -267,35 +293,51 @@ if (isset($_GET['action']) && $_GET['action'] == 'view' && !empty($_GET['id'])) 
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="6" class="text-center py-3">No orders found</td>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                                    <p class="mb-0">No orders found</p>
+                                </div>
+                            </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
     </div>
-    <?php if ($totalPages > 1): ?>
-    <div class="card-footer">
-        <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center mb-0">
-                <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
-                    <a class="page-link" href="?page=<?php echo $page-1; ?><?php echo (!empty($search)) ? '&search='.$search : ''; ?><?php echo (!empty($status)) ? '&status='.$status : ''; ?>">Previous</a>
-                </li>
-                
-                <?php for($i = 1; $i <= $totalPages; $i++): ?>
-                    <li class="page-item <?php echo ($page == $i) ? 'active' : ''; ?>">
-                        <a class="page-link" href="?page=<?php echo $i; ?><?php echo (!empty($search)) ? '&search='.$search : ''; ?><?php echo (!empty($status)) ? '&status='.$status : ''; ?>"><?php echo $i; ?></a>
-                    </li>
-                <?php endfor; ?>
-                
-                <li class="page-item <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">
-                    <a class="page-link" href="?page=<?php echo $page+1; ?><?php echo (!empty($search)) ? '&search='.$search : ''; ?><?php echo (!empty($status)) ? '&status='.$status : ''; ?>">Next</a>
-                </li>
-            </ul>
-        </nav>
-    </div>
-    <?php endif; ?>
 </div>
+
+<?php if ($totalPages > 1): ?>
+<div class="d-flex justify-content-center mt-4">
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            <?php if ($page > 1): ?>
+                <li class="page-item">
+                    <a class="page-link" href="?page=<?php echo ($page - 1); ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+            <?php endif; ?>
+            
+            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
+                    <a class="page-link" href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>">
+                        <?php echo $i; ?>
+                    </a>
+                </li>
+            <?php endfor; ?>
+            
+            <?php if ($page < $totalPages): ?>
+                <li class="page-item">
+                    <a class="page-link" href="?page=<?php echo ($page + 1); ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+            <?php endif; ?>
+        </ul>
+    </nav>
+</div>
+<?php endif; ?>
 
 <!-- Order Details Modal -->
 <?php if ($orderDetails): ?>
@@ -354,11 +396,11 @@ if (isset($_GET['action']) && $_GET['action'] == 'view' && !empty($_GET['id'])) 
                                 <?php foreach ($orderItems as $item): ?>
                                 <tr>
                                     <td>
-                                        <img src="<?php echo '../' . $item['cover_img']; ?>" alt="<?php echo $item['title']; ?>" style="width: 40px;" class="img-thumbnail">
+                                        <img src="<?php echo '../' . $item['cover_image']; ?>" alt="<?php echo $item['title']; ?>" style="width: 40px;" class="img-thumbnail">
                                     </td>
                                     <td>
                                         <div><?php echo $item['title']; ?></div>
-                                        <small class="text-muted"><?php echo $item['author']; ?></small>
+                                        <small class="text-muted"><?php echo $item['authors']; ?></small>
                                     </td>
                                     <td>$<?php echo number_format($item['price'], 2); ?></td>
                                     <td><?php echo $item['quantity']; ?></td>
@@ -420,15 +462,38 @@ $(document).ready(function(){
 <?php endif; ?>
 
 <script>
-function confirmDelete(orderId) {
-    if (confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
-        window.location.href = 'orders.php?action=delete&id=' + orderId;
+function filterByStatus(status) {
+    window.location.href = 'orders.php?status=' + status;
+}
+
+function deleteOrder(orderId) {
+    if (confirm('Are you sure you want to delete this order?')) {
+        // Use AJAX to delete the order
+        fetch('orders.php?action=delete&id=' + orderId, {
+            method: 'POST'
+        })
+        .then(response => response.text())
+        .then(() => {
+            // Reload the page after successful deletion
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the order.');
+        });
     }
 }
 
-function filterByStatus(status) {
-    window.location.href = 'orders.php?status=' + status<?php echo (!empty($search)) ? " + '&search=" . $search . "'" : ''; ?>;
-}
+// Show success/error messages
+<?php if (isset($_SESSION['success_message'])): ?>
+    alert('<?php echo $_SESSION['success_message']; ?>');
+    <?php unset($_SESSION['success_message']); ?>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['error_message'])): ?>
+    alert('<?php echo $_SESSION['error_message']; ?>');
+    <?php unset($_SESSION['error_message']); ?>
+<?php endif; ?>
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

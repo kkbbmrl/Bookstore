@@ -24,11 +24,36 @@ if ($categoriesQuery) {
 if ($action && $bookId) {
     switch ($action) {
         case 'delete':
+            // Get the book's cover image before deleting
+            $getImageStmt = $conn->prepare("SELECT cover_image FROM books WHERE id = ?");
+            $getImageStmt->bind_param("i", $bookId);
+            $getImageStmt->execute();
+            $bookImage = $getImageStmt->get_result()->fetch_assoc();
+            $getImageStmt->close();
+            
             // Delete book
             $deleteStmt = $conn->prepare("DELETE FROM books WHERE id = ?");
             $deleteStmt->bind_param("i", $bookId);
             
             if ($deleteStmt->execute()) {
+                // Delete the book's cover image if it exists and is not a default image
+                if (!empty($bookImage['cover_image']) && 
+                    $bookImage['cover_image'] !== 'book-1.jpg' && 
+                    $bookImage['cover_image'] !== 'book-loader.gif') {
+                    
+                    $image_paths = [
+                        "../images/books/" . $bookImage['cover_image'],
+                        "../images/" . $bookImage['cover_image'],
+                        $bookImage['cover_image']
+                    ];
+                    
+                    foreach($image_paths as $path) {
+                        if(file_exists($path)) {
+                            @unlink($path);
+                            break;
+                        }
+                    }
+                }
                 $_SESSION['success_message'] = "Book deleted successfully!";
             } else {
                 $_SESSION['error_message'] = "Error deleting book: " . $conn->error;
@@ -49,7 +74,7 @@ if ($action && $bookId) {
             $checkStmt->close();
             
             if ($columnExists) {
-                // Toggle featured status
+                // Toggle featured status without affecting cover image
                 $toggleStmt = $conn->prepare("UPDATE books SET featured = NOT featured WHERE id = ?");
                 $toggleStmt->bind_param("i", $bookId);
             } else {
@@ -175,9 +200,18 @@ if (isset($_POST['edit_book'])) {
     $category_id = $_POST['category_id'];
     $is_featured = isset($_POST['is_featured']) ? 1 : 0;
     
+    // Get current book data to ensure we have the correct cover image
+    $currentBookStmt = $conn->prepare("SELECT cover_image FROM books WHERE id = ?");
+    $currentBookStmt->bind_param("i", $id);
+    $currentBookStmt->execute();
+    $currentBook = $currentBookStmt->get_result()->fetch_assoc();
+    $currentBookStmt->close();
+    
     // Handle file upload for book cover
-    $cover_img = $_POST['current_cover'];
-    if(isset($_FILES['cover_img']) && $_FILES['cover_img']['error'] == 0) {
+    $cover_img = $currentBook['cover_image']; // Keep the current cover by default
+    
+    // Only process new image if one was actually uploaded
+    if(isset($_FILES['cover_img']) && $_FILES['cover_img']['error'] == 0 && $_FILES['cover_img']['size'] > 0) {
         $upload_dir = "../images/books/";
         
         // Create directory if it doesn't exist
@@ -193,18 +227,37 @@ if (isset($_POST['edit_book'])) {
         
         if(in_array($file_type, $allowed_types)) {
             if(move_uploaded_file($_FILES['cover_img']['tmp_name'], $target_file)) {
-                // Store just the filename, not the full path
+                // Only update cover_img if new image was successfully uploaded
                 $cover_img = $file_name;
                 
                 // Delete old image if it exists and is not a default image
-                if (!empty($_POST['current_cover']) && file_exists("../images/books/" . $_POST['current_cover'])) {
-                    @unlink("../images/books/" . $_POST['current_cover']);
+                if (!empty($currentBook['cover_image']) && 
+                    $currentBook['cover_image'] !== 'book-1.jpg' && 
+                    $currentBook['cover_image'] !== 'book-loader.gif') {
+                    
+                    // Check all possible locations for the old image
+                    $old_image_paths = [
+                        "../images/books/" . $currentBook['cover_image'],
+                        "../images/" . $currentBook['cover_image'],
+                        $currentBook['cover_image']
+                    ];
+                    
+                    foreach($old_image_paths as $old_path) {
+                        if(file_exists($old_path)) {
+                            @unlink($old_path);
+                            break;
+                        }
+                    }
                 }
+            } else {
+                $_SESSION['error_message'] = "Error uploading new image. Keeping current image.";
             }
+        } else {
+            $_SESSION['error_message'] = "Invalid file type. Allowed types: jpg, jpeg, png, gif";
         }
     }
     
-    // Update book
+    // Update book with proper image path
     $updateStmt = $conn->prepare("UPDATE books SET title = ?, description = ?, price = ?, old_price = ?, stock_quantity = ?, cover_image = ?, featured = ? WHERE id = ?");
     $updateStmt->bind_param("ssddsisi", $title, $description, $price, $discount_price, $stock, $cover_img, $is_featured, $id);
     
@@ -425,14 +478,13 @@ $totalPages = ceil($totalBooks / $limit);
                         <tr>
                             <td>
                                 <?php
-                                $coverImage = isset($book['cover_img']) ? $book['cover_img'] : (isset($book['cover_image']) ? $book['cover_image'] : 'book-loader.gif');
+                                $coverImage = isset($book['cover_image']) ? $book['cover_image'] : 'book-loader.gif';
                                 
                                 // Check all possible image locations
                                 $imagePaths = [
                                     '../images/books/' . $coverImage,
                                     '../images/' . $coverImage,
-                                    $coverImage,
-                                    '../' . $coverImage
+                                    $coverImage
                                 ];
                                 
                                 $imageUrl = '../images/book-loader.gif'; // Default image
@@ -444,7 +496,7 @@ $totalPages = ceil($totalBooks / $limit);
                                     }
                                 }
                                 ?>
-                                <img src="<?php echo $imageUrl; ?>" alt="<?php echo $book['title']; ?>" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;">
+                                <img src="<?php echo $imageUrl; ?>" alt="<?php echo htmlspecialchars($book['title']); ?>" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;">
                             </td>
                             <td>
                                 <?php echo $book['title']; ?>
@@ -471,7 +523,8 @@ $totalPages = ceil($totalBooks / $limit);
                                 if ($discount_price < $price): 
                                 ?>
                                     <span class="text-danger">$<?php echo number_format($discount_price, 2); ?></span>
-                                    <small class="text-muted"><s>$<?php echo number_format($price, 2); ?></s></small>
+                                    <small class="text-muted">$<?php echo number_format($price, 2); ?>
+</small>
                                 <?php else: ?>
                                     <span>$<?php echo number_format($price, 2); ?></span>
                                 <?php endif; ?>
@@ -634,7 +687,7 @@ $totalPages = ceil($totalBooks / $limit);
             </div>
             <form method="POST" action="" enctype="multipart/form-data">
                 <input type="hidden" name="id" value="<?php echo $book['id']; ?>">
-                <input type="hidden" name="current_cover" value="<?php echo isset($book['cover_img']) ? $book['cover_img'] : $book['cover_image']; ?>">
+                <input type="hidden" name="current_cover" value="<?php echo htmlspecialchars($book['cover_image']); ?>">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-8">
@@ -658,7 +711,7 @@ $totalPages = ceil($totalBooks / $limit);
                                     <option value="">Select a category</option>
                                     <?php foreach ($categories as $id => $name): ?>
                                         <option value="<?php echo $id; ?>" <?php echo ($book['category_id'] == $id) ? 'selected' : ''; ?>>
-                                            <?php echo $name; ?>
+                                            <?php echo htmlspecialchars($name); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -682,16 +735,13 @@ $totalPages = ceil($totalBooks / $limit);
                         <label for="edit_cover_img<?php echo $book['id']; ?>">Book Cover</label>
                         <div class="mb-2">
                             <?php
-                            $cover_path = isset($book['cover_img']) ? $book['cover_img'] : 
-                                         (isset($book['cover_image']) ? $book['cover_image'] : 
-                                         'book-loader.gif');
+                            $cover_path = isset($book['cover_image']) ? $book['cover_image'] : 'book-loader.gif';
                             
                             // Check all possible image paths
                             $possible_paths = [
                                 '../images/books/' . $cover_path,
                                 '../images/' . $cover_path,
-                                $cover_path,
-                                '../' . $cover_path
+                                $cover_path
                             ];
                             
                             $img_path = '../images/book-loader.gif'; // Default fallback
@@ -705,7 +755,7 @@ $totalPages = ceil($totalBooks / $limit);
                             <img src="<?php echo $img_path; ?>" alt="Current Cover" style="max-height: 150px; max-width: 100%;" class="img-thumbnail" id="currentCoverImage<?php echo $book['id']; ?>">
                         </div>
                         <div class="custom-file-upload">
-                            <input type="file" class="form-control-file" id="edit_cover_img<?php echo $book['id']; ?>" name="cover_img" onchange="previewImage(this, 'editImagePreview<?php echo $book['id']; ?>')">
+                            <input type="file" class="form-control-file" id="edit_cover_img<?php echo $book['id']; ?>" name="cover_img" accept="image/jpeg,image/png,image/gif" onchange="previewImage(this, 'editImagePreview<?php echo $book['id']; ?>')">
                             <small class="form-text text-muted">Leave empty to keep current cover</small>
                             <div id="editImagePreview<?php echo $book['id']; ?>" class="mt-2" style="display: none;">
                                 <img src="" alt="New Image Preview" style="max-height: 150px; max-width: 100%;" class="img-thumbnail">
@@ -714,7 +764,7 @@ $totalPages = ceil($totalBooks / $limit);
                     </div>
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" id="is_featured<?php echo $book['id']; ?>" name="is_featured" 
-                               <?php echo (isset($book['is_featured']) && $book['is_featured']) ? 'checked' : ''; ?>>
+                               <?php echo (isset($book['featured']) && $book['featured']) ? 'checked' : ''; ?>>
                         <label class="form-check-label" for="is_featured<?php echo $book['id']; ?>">Feature this book on homepage</label>
                     </div>
                 </div>

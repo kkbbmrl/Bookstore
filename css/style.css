@@ -406,6 +406,7 @@ border: none;
   font-size: 12px;
   margin-top: 0.5rem;
 }
+/* Special Offers Section Styling Enhancement */
 .offer-container{
   margin-top: 2rem;
   display: flex;
@@ -413,75 +414,125 @@ border: none;
   justify-content: center;
   gap: 2rem;
 }
+
 .offer-container .offer{
-  border: 1px solid #d6d6d6;
+  border: 1px solid #e0e0e0;
   width: 300px;
-  border-radius: 10px;
+  border-radius: 15px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  overflow: hidden;
 }
+
+.offer-container .offer:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 10px 25px rgba(108, 93, 212, 0.15);
+}
+
 .offer-container .offer .img{
-  background: url(https://png.pngtree.com/thumb_back/fh260/background/20190220/ourmid/pngtree-newest-propaganda-special-offer-special-price-image_10050.jpg) no-repeat;
-  background-size: cover;
-  background-position: center;
-  padding: 20px 0px;
+  background: linear-gradient(135deg, #f2f0fe 0%, #e5e2f3 100%);
+  padding: 25px 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px 10px 0px 0px;
+  border-radius: 15px 15px 0 0;
+  position: relative;
+  overflow: hidden;
 }
+
+.offer-container .offer .img::before {
+  content: "Special Offer";
+  position: absolute;
+  top: 15px;
+  left: -35px;
+  background: #ff764c;
+  color: white;
+  padding: 5px 40px;
+  font-size: 12px;
+  font-weight: bold;
+  transform: rotate(-45deg);
+  z-index: 1;
+}
+
 .offer-container .offer .img img{
-  width: 100px;
+  width: 120px;
+  height: 180px;
   border-radius: 8px;
   border: 2px solid #fff;
+  object-fit: cover;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
 }
+
+.offer-container .offer .img img:hover {
+  transform: scale(1.05);
+}
+
 .offer-container .offer .offer-content{
   padding: 20px;
-}
-.offer-container .offer h5{
-  font-size: 14px;
-  color: #131428;
-  margin-bottom: 0.5rem;
-}
-.offer-container .offer .genre span{
-  background-color: #f3f0fe;
-  color: #6c5dd4;
-  border-radius: 20px;
-  padding: 5px 10px;
-  text-transform: uppercase;
-  font-size: 10px;
-  font-weight: 600;
-}
-.offer-container .offer-content p{
-  font-size: 12px;
-  margin-top: 1rem;
-}
-.offer-container .offer-content small{
-  font-size: 11px;
-  font-weight: 600;
-}
-.offer-container .offer-content .offer-bottom{
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.offer-container .offer h5{
+  font-size: 16px;
+  color: #131428;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.offer-container .offer .price{
+  display: flex;
   align-items: center;
-  margin-top: 1rem;
+  gap: 10px;
+  margin-bottom: 15px;
 }
-.offer-container .offer-bottom .cartbtn{
-  background-color: #6c5dd4;
-  padding: 12px 30px;
-  font-size: 12px;
+
+.offer-container .offer .price strong{
+  font-size: 20px;
+  color: #6c5dd4;
+}
+
+.offer-container .offer .price span strike{
+  color: #a0a1a6;
+  font-size: 14px;
+}
+
+.offer-container .offer .cartbtn{
+  background: linear-gradient(135deg, #6c5dd4 0%, #8071e2 100%);
   border: none;
-  border-radius: 6px;
+  width: 100%;
+  padding: 12px 0;
+  border-radius: 8px;
   color: #fff;
-}
-.offer-container .offer-bottom .cartbtn i{
-  margin-right: 0.5rem;
-}
-.offer-bottom .price strong{
-  font-size: 25px;
   font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 10px rgba(108, 93, 212, 0.3);
 }
-.offer-bottom .price span{
-  font-size: 18px;
+
+.offer-container .offer .cartbtn i{
+  font-size: 16px;
 }
+
+.offer-container .offer .cartbtn:hover{
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(108, 93, 212, 0.4);
+}
+
+.offer-container .offer .cartbtn:active{
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(108, 93, 212, 0.4);
+}
+
 .sale{
   margin-top: 9rem;
 }

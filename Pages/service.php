@@ -71,7 +71,7 @@
               <i class="fa-regular fa-heart"></i> <span>35</span>
             </button>
             <button class="cart">
-              <a href="cart-item.html"><i class="fa-solid fa-cart-shopping"></i> <span>4</span></a>
+              <a href="cart-item.php"><i class="fa-solid fa-cart-shopping"></i> <span>4</span></a>
             </button>
             <div class="profile-img">
               <a href="account.php">
@@ -257,7 +257,7 @@
               <li><a href="book-filter.html">Products</a></li>
               <li><a href="login.php">Login</a></li>
               <li><a href="registration.php">Sign Up</a></li>
-              <li><a href="cart-item.html">Cart</a></li>
+              <li><a href="cart-item.php">Cart</a></li>
               <li><a href="checkout.php">Checkout</a></li>
             </ul>
           </div>

@@ -1,0 +1,10 @@
+{
+    "require": {
+        "chargily/chargily-pay": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bookstore\\": "./"
+        }
+    }
+}

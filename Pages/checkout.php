@@ -24,24 +24,55 @@ if (isset($_SESSION['user_id'])) {
     $user_info = mysqli_fetch_assoc($user_result);
 }
 
-// Fetch cart items from session or database (depending on your implementation)
-$cart_items = isset($_SESSION['cart']) ? $_SESSION['cart'] : [];
+// Fetch cart items from database instead of session
+$cart_items = [];
 $subtotal = 0;
 $total = 0;
 $shipping = 0; // Free shipping
 $discount = 5; // Hardcoded discount for now
 
-// Calculate totals with proper type casting
-if (!empty($cart_items)) {
-    foreach ($cart_items as $item) {
-        // Debugging: Log price and quantity values to a file
-        error_log("Price: " . var_export($item['price'], true) . ", Quantity: " . var_export($item['quantity'], true) . "\n", 3, __DIR__ . "/debug.log");
-
-        // Ensure price and quantity are properly cast to numeric types
-        $price = is_numeric($item['price']) ? (float)$item['price'] : 0;
-        $quantity = is_numeric($item['quantity']) ? (int)$item['quantity'] : 0;
-        $subtotal += $price * $quantity;
+// Get cart items from database if user is logged in
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    
+    // Fetch cart items from database
+    $stmt = $conn->prepare("
+        SELECT c.id, c.book_id, c.quantity, b.title, b.price, b.old_price, b.cover_image 
+        FROM cart_items c
+        JOIN books b ON c.book_id = b.id
+        WHERE c.user_id = ?
+        ORDER BY c.added_at DESC
+    ");
+    
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    while ($row = $result->fetch_assoc()) {
+        // Prepare cover image path
+        $cover_image = !empty($row['cover_image']) ? $row['cover_image'] : "../images/book-1.jpg";
+        
+        // If it's just a filename, prepend the books directory path
+        if (!empty($cover_image) && !strpos($cover_image, '/') && !strpos($cover_image, '\\')) {
+            $cover_image = "../images/books/" . $cover_image;
+        }
+        
+        // Calculate item total
+        $price = (float)$row['price']; 
+        $quantity = (int)$row['quantity'];
+        $item_total = $price * $quantity;
+        $subtotal += $item_total;
+        
+        $cart_items[] = [
+            'id' => $row['book_id'],
+            'name' => $row['title'],
+            'price' => $price,
+            'quantity' => $quantity,
+            'image' => $cover_image
+        ];
     }
+    
+    // Calculate final total
     $total = $subtotal - $discount;
 }
 ?>
@@ -163,6 +194,7 @@ if (!empty($cart_items)) {
                   background-position: right 0.75rem center;font-size: 15px;outline: none;" required>
                     <option value="">Select Country</option>
                     <option value="USA">USA</option>
+                    <option value="Algeria">Algeria</option>
                     <option value="India">India</option>
                     <option value="Australia">Australia</option>
                     <option value="New Zealand">New Zealand</option>
@@ -269,6 +301,7 @@ if (!empty($cart_items)) {
                 <option value="Debit Card">Debit Card</option>
                 <option value="PayPal">PayPal</option>
                 <option value="Cash On Delivery">Cash On Delivery</option>
+                <option value="Chargily Pay">Chargily Pay</option>
               </select>
             </div>
             <div id="card-fields" style="display: none;">

@@ -114,9 +114,9 @@ if(isset($_SESSION['contact_error'])) {
     <section class="hero">
       <div class="main">
         <div class="content">
-          <small>back to school</small>
-          <h2>Special 50% Off</h2>
-          <h5>for our student community</h5>
+          <small>Welcome Intellectuals</small>
+          <h2>Fassila Website</h2>
+          <h5>for our readers community</h5>
           <p>
             Lorem ipsum dolor sit amet consectetur adipisicing elit. Doloribus,
             maiores? Eius culpa molestias expedita magni incidunt necessitatibus
@@ -129,7 +129,7 @@ if(isset($_SESSION['contact_error'])) {
         </div>
         <div class="img">
           <img
-            src="images/teenager-student-girl-yellow-pointing-finger-side-copy.png"
+            src="images/teenager-student-girl-yellow-pointing-finger-side-copy.gif"
             alt=""
           />
         </div>
@@ -315,103 +315,52 @@ if(isset($_SESSION['contact_error'])) {
     <section class="offer">
       <div class="header">
         <h4>Special Offers</h4>
-        <p>
-          Lorem ipsum dolor sit amet consectetur adipisicing elit. Id,
-          exercitationem.
-        </p>
+        <p>Discover our exclusive deals on featured books!</p>
       </div>
       <div class="offer-container">
-        <div class="offer">
-          <div class="img">
-            <a href="Pages/book-detail.html"
-              ><img src="images/book-1.jpg" alt=""
-            /></a>
-          </div>
-          <div class="offer-content">
-            <h5>The Giver</h5>
-            <div class="genre">
-              <span>biography</span>
-              <span>thriller</span>
-              <span>horror</span>
-            </div>
-            <p>
-              Lorem ipsum dolor sit amet consectetur adipisicing
-              elit.Consequatur esse laboriosam nihil sint molestias sit iste
-              laboru
-            </p>
-            <small>Kevin Smiley</small>
-            <div class="offer-bottom">
-              <button class="cartbtn">
-                <i class="fa-solid fa-cart-shopping"></i>Add to cart
-              </button>
-              <div class="price">
-                <strong><span>$</span>18.7</strong>
+        <?php
+        // Include database connection
+        include 'connection.php';
+
+        // Fetch featured books from the database
+        $query = "SELECT * FROM books WHERE featured = 1";
+        $result = $conn->query($query);
+
+        if ($result && $result->num_rows > 0) {
+          while ($book = $result->fetch_assoc()) {
+            ?>
+            <div class="offer">
+              <div class="img">
+                <a href="Pages/book-detail.php?id=<?php echo $book['id']; ?>">
+                  <img src="images/books/<?php echo $book['cover_image'] ? $book['cover_image'] : 'book-1.jpg'; ?>" alt="<?php echo $book['title']; ?>" />
+                </a>
+              </div>
+              <div class="offer-content">
+                <h5 title="<?php echo $book['title']; ?>"><?php echo $book['title']; ?></h5>
+                <div class="price">
+                  <strong><span>$</span><?php echo number_format($book['price'], 2); ?></strong>
+                  <?php if (!empty($book['old_price']) && $book['old_price'] > $book['price']): ?>
+                    <span><strike>$<?php echo number_format($book['old_price'], 2); ?></strike></span>
+                  <?php endif; ?>
+                </div>
+                <button class="cartbtn" data-book-id="<?php echo $book['id']; ?>"
+                       data-book-name="<?php echo $book['title']; ?>"
+                       data-book-price="<?php echo $book['price']; ?>"
+                       data-book-image="<?php echo $book['cover_image']; ?>">
+                  <i class="fa-solid fa-cart-shopping"></i>Add to cart
+                </button>
               </div>
             </div>
-          </div>
-        </div>
-        <div class="offer">
-          <div class="img">
-            <a href="Pages/book-detail.html"
-              ><img src="images/book-3.jpg" alt=""
-            /></a>
-          </div>
-          <div class="offer-content">
-            <h5>Radical Gardening</h5>
-            <div class="genre">
-              <span>biography</span>
-              <span>thriller</span>
-              <span>horror</span>
-            </div>
-            <p>
-              Lorem ipsum dolor sit amet consectetur adipisicing
-              elit.Consequatur esse laboriosam nihil sint molestias sit iste
-              laboru
-            </p>
-            <small>Kevin Smiley</small>
-            <div class="offer-bottom">
-              <button class="cartbtn">
-                <i class="fa-solid fa-cart-shopping"></i>Add to cart
-              </button>
-              <div class="price">
-                <strong><span>$</span>18.7</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="offer">
-          <div class="img">
-            <a href="pages/book-detail.html"
-              ><img src="images/book-2.jpg" alt=""
-            /></a>
-          </div>
-          <div class="offer-content">
-            <h5>The Bright Brothers</h5>
-            <div class="genre">
-              <span>biography</span>
-              <span>thriller</span>
-              <span>horror</span>
-            </div>
-            <p>
-              Lorem ipsum dolor sit amet consectetur adipisicing
-              elit.Consequatur esse laboriosam nihil sint molestias sit iste
-              laboru
-            </p>
-            <small>Kevin Smiley</small>
-            <div class="offer-bottom">
-              <button class="cartbtn">
-                <i class="fa-solid fa-cart-shopping"></i>Add to cart
-              </button>
-              <div class="price">
-                <strong><span>$</span>18.7</strong>
-              </div>
-            </div>
-          </div>
-        </div>
+            <?php
+          }
+        } else {
+          echo '<p class="no-offers">No special offers available at the moment. <a href="Pages/book-filter.php">Browse all books</a> instead.</p>';
+        }
+        ?>
       </div>
     </section>
 
-    <section class="sale">
+    <!-- <section class="sale">
       <div class="header">
         <h4>Flash Sale</h4>
         <p>
@@ -500,9 +449,9 @@ if(isset($_SESSION['contact_error'])) {
           </div>
         </div>
       </div>
-    </section>
+    </section> -->
 
-    <section class="book-sale">
+    <!-- <section class="book-sale">
       <div class="heading">
         <h4>Books On Sale</h4>
         <div class="arrowbtn">
@@ -635,9 +584,9 @@ if(isset($_SESSION['contact_error'])) {
           </ul>
         </div>
       </div>
-    </section>
+    </section> -->
 
-    <section class="feature">
+    <!-- <section class="feature">
       <div class="main">
         <div class="content">
           <h4>Featured Books</h4>
@@ -716,7 +665,7 @@ if(isset($_SESSION['contact_error'])) {
       </div>
       <div class="circle-1"></div>
       <div class="circle-2"></div>
-    </section>
+    </section> -->
 
     <!-- <section class="news">
       <div class="heading">

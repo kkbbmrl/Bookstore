@@ -229,8 +229,8 @@ if ($current_page !== 'login.php') {
                 ?>
             </h4>
             <div class="dropdown">
-                <a href="#" class="dropdown-toggle text-dark text-decoration-none" id="userDropdown" data-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-user-circle mr-1"></i>
+                <a href="#" class="dropdown-toggle text-dark text-decoration-none d-flex align-items-center" id="userDropdown" data-toggle="dropdown" aria-expanded="false">
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiM0o_5tIn0DAmbB2wKS4GvurHctTwxD5om2vi4NOsj1ODDSGULrviZ-QV3ul8JYEMfO0&amp;usqp=CAU" alt="Account Avatar" style="width:40px; height:40px; border-radius:50%; object-fit:cover; margin-right:10px;">
                     <?php echo isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admin'; ?>
                 </a>
                 <div class="dropdown-menu dropdown-menu-right">
